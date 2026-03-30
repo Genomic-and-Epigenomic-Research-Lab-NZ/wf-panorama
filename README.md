@@ -295,5 +295,29 @@ If your question is not answered here, please report any issues or suggestions o
 
 See the [EPI2ME website](https://labs.epi2me.io/) for lots of other resources and blog posts.
 
+README
+======
+
+wf-panorama - Nextflow conversion of nanopore_multiBM_pipeline
+
+Quick start
+
+- Provide config/panel_metadata.csv (kept as CSV) and a samplesheet at config/samplesheet.csv or pass -params.sample and -params.project_name.
+- Ensure bin/ scripts are executable: chmod +x bin/*
+- Provide Apptainer/Singularity images for the containers referenced in nextflow.config and modules (place in accessible registry or local .sif paths).
+
+Run locally:
+
+nextflow run main.nf -profile local -params-file config/config.yaml
+
+Run on SLURM:
+
+nextflow run main.nf -profile slurm -params-file config/config.yaml
+
+Notes
+- The pipeline uses DSL2 modules in modules/ and CLI scripts in bin/ adapted from the original Snakemake pipeline.
+- panel_metadata.csv remains a CSV and is passed to modules that require it.
+- Containers are placeholders; build Apptainer images later and update nextflow.config or process directives. TODO
+
 
 

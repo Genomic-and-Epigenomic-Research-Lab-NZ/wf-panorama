@@ -1,0 +1,70 @@
+Bootstrap: docker
+From: ubuntu:22.04
+
+%post
+    set -e
+
+    export DEBIAN_FRONTEND=noninteractive
+    export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+    echo "=== Updating system ==="
+    apt-get update
+
+    echo "=== Installing system dependencies ==="
+    apt-get install -y \
+        build-essential \
+        autoconf \
+        automake \
+        libtool \
+        pkg-config \
+        zlib1g-dev \
+        libbz2-dev \
+        liblzma-dev \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        wget \
+        curl \
+        git \
+        python3 python3-pip python3-dev \
+        ca-certificates \
+        xz-utils
+
+    echo "=== Installing bedtools 2.31.1 ==="
+    cd /opt
+    wget https://github.com/arq5x/bedtools2/releases/download/v2.31.1/bedtools-2.31.1.tar.gz
+    tar -xzf bedtools-2.31.1.tar.gz
+    cd bedtools2
+    make -j$(nproc)
+    make install
+
+    echo "=== Installing htslib 1.21 ==="
+    cd /opt
+    wget https://github.com/samtools/htslib/releases/download/1.21/htslib-1.21.tar.bz2
+    tar -xjf htslib-1.21.tar.bz2
+    cd htslib-1.21
+    ./configure --prefix=/usr/local
+    make -j$(nproc)
+    make install
+
+    echo "=== Installing samtools 1.21 ==="
+    cd /opt
+    wget https://github.com/samtools/samtools/releases/download/1.21/samtools-1.21.tar.bz2
+    tar -xjf samtools-1.21.tar.bz2
+    cd samtools-1.21
+    ./configure --with-htslib=/usr/local --prefix=/usr/local
+    make -j$(nproc)
+    make install
+
+    echo "=== Installing Python packages ==="
+    pip3 install numpy==2.2.2 pandas==2.2.2
+    pip3 install cyvcf2==0.31.1
+
+    echo "=== Cleaning up ==="
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+%environment
+    export PATH=/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
+    export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH

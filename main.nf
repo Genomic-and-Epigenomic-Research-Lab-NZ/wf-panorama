@@ -17,6 +17,8 @@ include { fastq_ingress; xam_ingress } from './lib/ingress'
 include {
     getParams;
 } from './lib/common'
+include { panel_prep } from './modules/panel_prep.nf'
+include { sample_processing } from './modules/sample_processing.nf'
 
 
 OPTIONAL_FILE = file("$projectDir/data/OPTIONAL_FILE")
@@ -120,6 +122,46 @@ process collectIngressResultsInDir {
     """
 }
 
+// main.nf - DSL2 workflow entry scaffold
+
+workflow {
+    params.panel_metadata = params.panel_metadata
+    params.project_name = params.project_name
+    params.sample = params.sample
+    // params.samplesheet = params.samplesheet ?: 'config/samplesheet.csv'
+
+    // // If sample not provided, attempt to read first sample from samplesheet
+    // def samplesheetFile = file(params.samplesheet)
+    // if (!params.sample && samplesheetFile.exists()) {
+    //     def lines = samplesheetFile.text.readLines()
+    //     if (lines.size() > 1) {
+    //         def header = lines[0].split(',')*.trim()
+    //         def first = lines[1].split(',')*.trim()
+    //         // assume first column is sample name
+    //         params.sample = first[0]
+    //         if (!params.project_name && first.size() > 1) {
+    //             params.project_name = first[1]
+    //         }
+    //         log.info "params.sample not set — using first sample from ${params.samplesheet}: ${params.sample}"
+    //     }
+    // }
+
+    Channel.fromPath(params.panel_metadata)
+        .set { panel_metadata_ch }
+
+    // Run panel preparation
+    panel_prep(panel_metadata_ch)
+
+    // Run per-sample processing for a single sample (params.sample must be set)
+    if (params.sample) {
+        sample_processing(panel_metadata_ch)
+    } else {
+        log.info "No params.sample set; provide -params.sample"
+    }
+
+    emit: workflow_out
+}
+
 // workflow module
 workflow pipeline {
     take:
@@ -182,39 +224,39 @@ workflow {
     Pinguscript.ping_start(nextflow, workflow, params)
 
     def samples
-    if (params.fastq) {
-        samples = fastq_ingress([
-            "input":params.fastq,
-            "sample":params.sample,
-            "sample_sheet":params.sample_sheet,
-            "analyse_unclassified":params.analyse_unclassified,
-            "analyse_fail":params.analyse_fail,
-            "stats": params.wf.fastcat_stats,
-            "fastcat_extra_args": "",
-            "required_sample_types": [],
-            "watch_path": params.wf.watch_path,
-            "fastq_chunk": params.fastq_chunk,
-            "per_read_stats": params.wf.per_read_stats,
-            "allow_multiple_basecall_models": params.wf.allow_multiple_basecall_models,
-        ])
-    } else {
+    // if (params.fastq) {
+    //     samples = fastq_ingress([
+    //         "input":params.fastq,
+    //         "sample":params.sample,
+    //         "sample_sheet":params.sample_sheet,
+    //         "analyse_unclassified":params.analyse_unclassified,
+    //         "analyse_fail":params.analyse_fail,
+    //         "stats": params.wf.fastcat_stats,
+    //         "fastcat_extra_args": "",
+    //         "required_sample_types": [],
+    //         "watch_path": params.wf.watch_path,
+    //         "fastq_chunk": params.fastq_chunk,
+    //         "per_read_stats": params.wf.per_read_stats,
+    //         "allow_multiple_basecall_models": params.wf.allow_multiple_basecall_models,
+    //     ])
+    // } else {
         // if we didn't get a `--fastq`, there must have been a `--bam` (as is codified
         // by the schema)
-        samples = xam_ingress([
-            "input":params.bam,
-            "sample":params.sample,
-            "sample_sheet":params.sample_sheet,
-            "analyse_unclassified":params.analyse_unclassified,
-            "analyse_fail":params.analyse_fail,
-            "keep_unaligned": params.wf.keep_unaligned,
-            "stats": params.wf.bamstats,
-            "watch_path": params.wf.watch_path,
-            "return_fastq": params.wf.return_fastq,
-            "fastq_chunk": params.fastq_chunk,
-            "per_read_stats": params.wf.per_read_stats,
-            "allow_multiple_basecall_models": params.wf.allow_multiple_basecall_models,
-        ])
-    }
+    samples = xam_ingress([
+        "input":params.bam,
+        "sample":params.sample,
+        "sample_sheet":params.sample_sheet,
+        "analyse_unclassified":params.analyse_unclassified,
+        "analyse_fail":params.analyse_fail,
+        "keep_unaligned": params.wf.keep_unaligned,
+        "stats": params.wf.bamstats,
+        "watch_path": params.wf.watch_path,
+        "return_fastq": params.wf.return_fastq,
+        "fastq_chunk": params.fastq_chunk,
+        "per_read_stats": params.wf.per_read_stats,
+        "allow_multiple_basecall_models": params.wf.allow_multiple_basecall_models,
+    ])
+    // }
 
     // group back the possible multiple fastqs from the chunking. In
     // a "real" workflow this wouldn't be done immediately here and
@@ -222,21 +264,21 @@ workflow {
     // will give us a file list of `[null]` for missing samples, reduce
     // this back to `null`.
     def decorate_samples
-    if (params.wf.return_fastq || params.fastq) {
-        decorate_samples = samples
-            .map {meta, fname, stats ->
-                [meta["group_key"], meta, fname, stats]}
-            .groupTuple()
-            .map { key, metas, fnames, statss ->
-                if (fnames[0] == null) {fnames = null}
-                // put all the group_indexes into a single list for safe keeping (mainly testing)
-                [
-                    metas[0] + ["group_index":  metas.collect{it["group_index"]}],
-                    fnames, statss[0]]
-            }
-    } else {
-        decorate_samples = samples
-    }
+    // if (params.wf.return_fastq || params.fastq) {
+    //     decorate_samples = samples
+    //         .map {meta, fname, stats ->
+    //             [meta["group_key"], meta, fname, stats]}
+    //         .groupTuple()
+    //         .map { key, metas, fnames, statss ->
+    //             if (fnames[0] == null) {fnames = null}
+    //             // put all the group_indexes into a single list for safe keeping (mainly testing)
+    //             [
+    //                 metas[0] + ["group_index":  metas.collect{it["group_index"]}],
+    //                 fnames, statss[0]]
+    //         }
+    // } else {
+    decorate_samples = samples
+    // }
 
     pipeline(decorate_samples)
     ch_to_publish = pipeline.out.ingress_results
