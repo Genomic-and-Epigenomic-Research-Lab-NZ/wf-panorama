@@ -4,7 +4,7 @@ process get_scores {
     memory '8 GB'
     time '1h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}", mode: 'copy'
     input:
         path panel_meta
         path snv_res
@@ -29,7 +29,7 @@ process generate_report {
     memory '4 GB'
     time '30m'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}", mode: 'copy'
     input:
         path panel_meta
         path template

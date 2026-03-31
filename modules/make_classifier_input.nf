@@ -4,7 +4,7 @@ process make_classifier_input {
     memory '8 GB'
     time '1h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}", mode: 'copy'
     input:
         path panel_meta
         path snv_res

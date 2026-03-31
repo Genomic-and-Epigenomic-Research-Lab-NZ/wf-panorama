@@ -1,12 +1,10 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema",
     "$id": "https://raw.githubusercontent.com/./master/nextflow_schema.json",
-    "title": "epi2me-labs/wf-template",
-    "workflow_title": "Template workflow",
-    "description": "Nextflow workflow template repository.",
-    "demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-template/wf-template-demo.tar.gz",
-    "aws_demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-template/wf-template-demo/aws.nextflow.config",
-    "url": "https://github.com/epi2me-labs/wf-template",
+    "title": "wf-panorama",
+    "workflow_title": "Panorama sample processing workflow",
+    "description": "Nextflow workflow for Panorama sample processing.",
+    "url": "https://github.com/lucy924/wf-panorama",
     "type": "object",
     "definitions": {
         "input": {
@@ -15,62 +13,62 @@
             "fa_icon": "fas fa-arrow-right",
             "description": "Parameters for finding and handling input data for analysis.",
             "properties": {
-                "fastq": {
+                "sample": {
                     "type": "string",
-                    "format": "path",
-                    "title": "FASTQ",
-                    "description": "FASTQ files to use in the analysis.",
-                    "help_text": "This accepts one of four cases: (i) the path to a single FASTQ file; (ii) the path to a folder containing FASTQ files; (iii) the path to a folder containing one level of sub-folders which in turn contain FASTQ files; (iv) the path to a MinKNOW experiment folder containing sub-folders for each sequenced sample. In the first and second case, a sample name can be supplied with `--sample`. In the third case, the data is assumed to be multiplexed with the names of the sub-folders as barcodes, and a sample sheet can be provided with `--sample_sheet`. In the fourth case, the data is assumed to be multiplexed with the names of the sub-folders as samples, and a sample sheet and/or sample name must be provided to indicate which samples to analyse."
+                    "title": "Sample name",
+                    "description": "A single sample name.",
+                    "help_text": "This is used to specify a single sample name of your choosing."
                 },
-                "bam": {
+                "bam_directory": {
                     "type": "string",
                     "format": "path",
                     "description": "BAM or unaligned BAM (uBAM) files to use in the analysis.",
-                    "help_text": "This accepts one of four cases: (i) the path to a single BAM file; (ii) the path to a folder containing BAM files; (iii) the path to a folder containing one level of sub-folders which in turn contain BAM files; (iv) the path to a MinKNOW experiment folder containing sub-folders for each sequenced sample. In the first and second case, a sample name can be supplied with `--sample`. In the third case, the data is assumed to be multiplexed with the names of the sub-folders as barcodes, and a sample sheet can be provided with `--sample_sheet`. In the fourth case, the data is assumed to be multiplexed with the names of the sub-folders as samples, and a sample sheet and/or sample name must be provided to indicate which samples to analyse."
+                    "help_text": "This accepts the path to a folder containing BAM files."
                 },
-                "analyse_unclassified": {
+                "panel_metadata": {
+                    "type": "string",
+                    "format": "path",
+                    "default": "demo_input/panel_metadata.csv",
+                    "description": "Path to the input panel metadata CSV file. This is required.",
+                    "help_text": "Path to a CSV file containing panel metadata for the sample."
+                },
+                "target_bedfile": {
+                    "type": "string",
+                    "format": "path",
+                    "default": "demo_input/targets.bed",
+                    "title": "Path to the target BED file",
+                    "description": "Path to the BED file defining target regions.",
+                    "help_text": "A BED file specifying the genomic target regions for analysis."
+                },
+                "project_name": {
+                    "type": "string",
+                    "title": "Project title",
+                    "description": "A single project name.",
+                    "help_text": "This designates a project name used as the top level of the results directory. Every sample output will be stored in sub-directories under the project name directory."
+                },
+                "get_sample_report": {
                     "type": "boolean",
                     "default": false,
-                    "title": "Analyse unclassified reads",
-                    "description": "Analyse unclassified reads from input folder. By default the workflow will not process reads in the unclassified folder.",
-                    "help_text": "If selected and if the input is a multiplex folder the workflow will also process the unclassified folder."
-                },
-                "analyse_fail": {
-                    "type": "boolean",
-                    "default": false,
-                    "title": "Analyse reads marked as failed QC by the basecaller.",
-                    "description": "Analyse failed reads from input folder. By default the workflow will not process reads in a pod5_fail, bam_fail or fastq_fail sub-folders.",
-                    "help_text": "If selected and if the input is a multiplex folder the workflow will also process pod5_fail, bam_fail and fastq_fail folders."
-                },
-                "watch_path": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Enable to continuously watch the input directory for new input files.",
-                    "help_text": "This option enables the use of Nextflow\u2019s directory watching feature to constantly monitor input directories for new files."
+                    "title": "Generate patient report",
+                    "description": "Turn on individual patient sample analysis report generation.",
+                    "help_text": "By default the workflow will not generate individual patient sample reports, and instead will only generate the data for use as input to a machine learning classification project. This option turns on the generation of individual patient sample reports based on the final machine learned classifier."
                 },
                 "client_fields": {
                     "type": "string",
                     "format": "file-path",
                     "description": "A JSON file of key value pairs to display on the report.",
-                    "help_text": "This is used to populate a table of additional information (for example, about upstream components of an assay) to the workflow report.",
+                    "help_text": "This is used to populate a table of additional information to the workflow report.",
                     "hidden": true
-                },
-                "fastq_chunk": {
-                    "title": "Fastq chunk size",
-                    "type": "integer",
-                    "description": "Sets the maximum number of reads per chunk returned from the data ingress layer.",
-                    "help_text": "Default is to not chunk data and return a single FASTQ file."
                 }
             },
-            "oneOf": [
+            "allOf": [
                 {
                     "required": [
-                        "fastq"
-                    ]
-                },
-                {
-                    "required": [
-                        "bam"
+                        "project_name",
+                        "sample",
+                        "bam_directory",
+                        "panel_metadata",
+                        "target_bedfile"
                     ]
                 }
             ]
@@ -84,12 +82,8 @@
                 "sample_sheet": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "A CSV file used to map barcodes to sample aliases. The sample sheet can be provided when the input data is a folder containing sub-folders with FASTQ files.",
-                    "help_text": "The sample sheet is a CSV file with, minimally, columns named `barcode` and `alias`. Extra columns are allowed. A `type` column is required for certain workflows and should have the following values; `test_sample`, `positive_control`, `negative_control`, `no_template_control`. An optional `analysis_group` column is used by some workflows to combine the results of multiple samples. If the `analysis_group` column is present, it needs to contain a value for each sample."
-                },
-                "sample": {
-                    "type": "string",
-                    "description": "A single sample name for singleplexed data. For multiplex data, this will limit analysis to the single named sample."
+                    "description": "A CSV file used to map barcodes to sample aliases.",
+                    "help_text": "The sample sheet is a CSV file with, minimally, columns named `barcode` and `alias`. Extra columns are allowed."
                 }
             }
         },
@@ -101,9 +95,34 @@
             "properties": {
                 "out_dir": {
                     "type": "string",
-                    "default": "output",
                     "format": "directory-path",
-                    "description": "Directory for output of all workflow results."
+                    "description": "Directory for output of all workflow results. Defaults to <project_name>.results if not set."
+                }
+            }
+        },
+        "coverage_options": {
+            "title": "Coverage Options",
+            "type": "object",
+            "fa_icon": "fas fa-chart-bar",
+            "description": "Parameters controlling genome coverage thresholds.",
+            "properties": {
+                "buffersize_bp": {
+                    "type": "integer",
+                    "default": 2000,
+                    "description": "Buffer size in base pairs around target regions.",
+                    "help_text": "Defines the buffer added around target regions for analysis."
+                },
+                "min_genome_coverage": {
+                    "type": "number",
+                    "default": 0.5,
+                    "description": "Minimum acceptable genome coverage fraction.",
+                    "help_text": "Samples with coverage below this threshold will be flagged."
+                },
+                "max_genome_coverage": {
+                    "type": "number",
+                    "default": 2.0,
+                    "description": "Maximum acceptable genome coverage fraction.",
+                    "help_text": "Samples with coverage above this threshold will be flagged."
                 }
             }
         },
@@ -113,7 +132,61 @@
             "fa_icon": "far fa-question-circle",
             "description": "Advanced options for configuring processes inside the workflow.",
             "help_text": "These advanced options do not need to be changed for typical use, but allow fine tuning of workflows for users who want more control over the workflow.",
-            "properties": {}
+            "properties": {
+                "max_cores": {
+                    "type": "integer",
+                    "default": 16,
+                    "description": "Maximum number of CPU cores to use across all processes.",
+                    "help_text": "Sets an upper bound on the number of cores available to the workflow."
+                },
+                "wf_humvar_basecaller": {
+                    "type": "string",
+                    "description": "Basecaller model used for the wf-humvar sub-workflow.",
+                    "help_text": "Specify the basecaller model string if required by wf-humvar.",
+                    "hidden": true
+                },
+                "wf_humvar_profile": {
+                    "type": "string",
+                    "default": "standard",
+                    "description": "Profile to use for the wf-humvar sub-workflow.",
+                    "help_text": "Controls which wf-humvar profile is applied during variant calling.",
+                    "hidden": true
+                },
+                "wf_humvar_threads": {
+                    "type": "integer",
+                    "default": 8,
+                    "description": "Number of threads for the wf-humvar sub-workflow.",
+                    "help_text": "Sets the number of threads passed to the wf-humvar process.",
+                    "hidden": true
+                },
+                "singularity_cache": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to the Singularity image cache directory.",
+                    "help_text": "Set this to singularity.cacheDir when using the singularity profile.",
+                    "hidden": true
+                },
+                "cibersortx_username": {
+                    "type": "string",
+                    "default": "",
+                    "description": "CIBERSORTx account username.",
+                    "help_text": "Required to authenticate with the CIBERSORTx service.",
+                    "hidden": true
+                },
+                "cibersortx_token": {
+                    "type": "string",
+                    "default": "",
+                    "description": "CIBERSORTx authentication token.",
+                    "help_text": "Required to authenticate with the CIBERSORTx service.",
+                    "hidden": true
+                },
+                "r_methyl_container": {
+                    "type": "string",
+                    "description": "Path or URI to the R methylation/CIBERSORTx container image.",
+                    "help_text": "If null, falls back to containers/methylcibersort.sandbox.",
+                    "hidden": true
+                }
+            }
         },
         "misc": {
             "title": "Miscellaneous Options",
@@ -124,12 +197,7 @@
                 "disable_ping": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Enable to prevent sending a workflow ping.",
-                    "overrides": {
-                        "epi2mecloud": {
-                            "hidden": true
-                        }
-                    }
+                    "description": "Enable to prevent sending a workflow ping."
                 },
                 "help": {
                     "type": "boolean",
@@ -149,21 +217,12 @@
         }
     },
     "allOf": [
-        {
-            "$ref": "#/definitions/input"
-        },
-        {
-            "$ref": "#/definitions/samples"
-        },
-        {
-            "$ref": "#/definitions/output"
-        },
-        {
-            "$ref": "#/definitions/advanced_options"
-        },
-        {
-            "$ref": "#/definitions/misc"
-        }
+        { "$ref": "#/definitions/input" },
+        { "$ref": "#/definitions/samples" },
+        { "$ref": "#/definitions/output" },
+        { "$ref": "#/definitions/coverage_options" },
+        { "$ref": "#/definitions/advanced_options" },
+        { "$ref": "#/definitions/misc" }
     ],
     "properties": {
         "aws_image_prefix": {
@@ -175,26 +234,29 @@
             "hidden": true
         },
         "monochrome_logs": {
-            "type": "boolean"
+            "type": "boolean",
+            "hidden": true
         },
         "validate_params": {
             "type": "boolean",
-            "default": true
+            "default": true,
+            "hidden": true
         },
         "show_hidden_params": {
-            "type": "boolean"
+            "type": "boolean",
+            "hidden": true
         }
     },
     "resources": {
         "recommended": {
-            "cpus": 2,
-            "memory": "2GB"
+            "cpus": 16,
+            "memory": "32GB"
         },
         "minimum": {
             "cpus": 2,
-            "memory": "2GB"
+            "memory": "4GB"
         },
-        "run_time": "5 minutes per sample",
-        "arm_support": true 
+        "run_time": "Variable per sample",
+        "arm_support": false
     }
 }

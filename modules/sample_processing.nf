@@ -10,7 +10,7 @@ process combine_bedmethyls {
     memory '8 GB'
     time '1h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path b1
         path b2
@@ -29,7 +29,7 @@ process convert_bedmethyl_to_DSS {
     memory '8 GB'
     time '1h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path bed
     output:
@@ -46,7 +46,7 @@ process prep_for_getting_betas {
     memory '8 GB'
     time '1h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path epic
         path dss
@@ -64,7 +64,7 @@ process add_betas {
     memory '16 GB'
     time '2h'
     container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path pre
     output:
@@ -81,7 +81,7 @@ process modification_calling {
     memory '16 GB'
     time '4h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path panel_meta
         path post
@@ -105,7 +105,7 @@ process run_methylCS {
     memory '8 GB'
     time '1h'
     container './containers/methylcibersort.sif'
-    publishDir "results/${params.project_name}/${params.sample}/methylCS", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/methylCS", mode: 'copy'
     input:
         path beta
     output:
@@ -123,7 +123,7 @@ process run_CIBERSORTX {
     memory '8 GB'
     time '2h'
     container 'docker://cibersortx/fractions'
-    publishDir "results/${params.project_name}/${params.sample}/methylCS", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/methylCS", mode: 'copy'
     input:
         path mixture
         path sigmatrix
@@ -152,7 +152,7 @@ process snv_annotation {
     memory '8 GB'
     time '2h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}/snv_annotation", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/snv_annotation", mode: 'copy'
     input:
         path panel_meta
         path vcf_clin
@@ -178,7 +178,7 @@ process sv_annotation {
     memory '8 GB'
     time '2h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}/sv_annotation", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/sv_annotation", mode: 'copy'
     input:
         path panel_meta
         path vcf_sv
@@ -200,7 +200,7 @@ process immune_infiltrate_mCS {
     memory '8 GB'
     time '1h'
     container "file://${projectDir}/containers/general.sandbox"
-    publishDir "results/${params.project_name}/${params.sample}/immune_infiltrate", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/immune_infiltrate", mode: 'copy'
     input:
         path panel_meta
         path mcs
