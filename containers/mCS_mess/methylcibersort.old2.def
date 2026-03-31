@@ -1,0 +1,63 @@
+Bootstrap: docker
+From: ubuntu:20.04
+
+%labels
+    Maintainer "Lucy Picard"
+    Version "container to run R scripts with version 3 and MethylCIBERSORT"
+    Description "R 3.6.3 + BioC + MethylCIBERSORT"
+
+%environment
+    export R_LIBS_USER=/usr/local/lib/R/site-library
+    export PATH=/usr/local/bin:$PATH
+
+%post
+    set -e
+
+    echo "### Installing system dependencies"
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        build-essential \
+        wget curl git \
+        gfortran \
+        libcurl4-openssl-dev \
+        libssl-dev \
+        libxml2-dev \
+        libblas-dev \
+        liblapack-dev \
+        libjpeg-dev \
+        libtiff5-dev \
+        libpng-dev \
+        zlib1g-dev \
+        libfreetype6-dev \
+        libfontconfig1-dev \
+        libharfbuzz-dev \
+        libfribidi-dev \
+        cmake \
+        pkg-config
+
+    echo "### Building R 3.6.3 from source"
+    cd /tmp
+    wget https://cran.r-project.org/src/base/R-3/R-3.6.3.tar.gz
+    tar -xzf R-3.6.3.tar.gz
+    cd R-3.6.3
+    ./configure --enable-R-shlib --with-blas --with-lapack
+    make -j$(nproc)
+    make install
+
+    echo "### Creating R library directory"
+    mkdir -p /usr/local/lib/R/site-library
+    chmod 777 /usr/local/lib/R/site-library
+
+    echo "### Installing CRAN packages"
+    Rscript -e 'install.packages(c("quadprog", "matrixStats", "NMF", "doParallel", "glmnet", "caret"), repos="https://cloud.r-project.org")'
+
+    echo "### Installing Bioconductor packages"
+    Rscript -e 'install.packages("BiocManager", repos="https://cloud.r-project.org")'
+    Rscript -e 'BiocManager::install(c("minfi", "multtest"), ask=FALSE)'
+
+    echo "### Installing MethylCIBERSORT from tarball"
+    # This tarball is added via %files into /tmp
+    R CMD INSTALL /opt/MethylCIBERSORT_0.2.0.tar.gz
+
+%files
+    /projects/uow/GERL/dejlu879/Panorama/wf-panorama/resources/MethylCIBERSORT_Release/MethylCIBERSORT_0.2.0.tar.gz /opt/MethylCIBERSORT_0.2.0.tar.gz

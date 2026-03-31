@@ -1,0 +1,58 @@
+Bootstrap: docker
+From: ubuntu:20.04
+
+%labels
+    Maintainer "Lucy Picard"
+    Version "methylcibersort:conda-env"
+    Description "R 3.6.3 + conda env (mCS_venv_test) + MethylCIBERSORT"
+
+%environment
+    export R_LIBS_USER=/usr/local/lib/R/site-library
+    export PATH=/opt/conda/envs/mCS_venv_test/bin:/opt/conda/bin:/usr/local/bin:$PATH
+
+%files
+    mCS_venv_test.yaml /opt/mCS_venv_test.yaml
+    MethylCIBERSORT_0.2.0.tar.gz /opt/MethylCIBERSORT_0.2.0.tar.gz
+
+%post
+    set -e
+    echo "### Install system deps needed by conda/R build and R packages"
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        wget ca-certificates bzip2 curl git build-essential gfortran \
+        libcurl4-openssl-dev libssl-dev libxml2-dev libblas-dev liblapack-dev \
+        libjpeg-dev libtiff5-dev libpng-dev zlib1g-dev libfreetype6-dev \
+        libfontconfig1-dev libharfbuzz-dev libfribidi-dev libbz2-dev liblzma-dev \
+        xz-utils pkg-config && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    echo "### Install Miniconda (for mamba/conda)"
+    MINICONDA=/tmp/miniconda.sh
+    wget -q https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $MINICONDA && \
+    bash $MINICONDA -b -p /opt/conda && \
+    rm -f $MINICONDA
+
+    export PATH=/opt/conda/bin:$PATH
+    conda config --set channel_priority strict
+
+    echo "### Install mamba for fast env creation"
+    /opt/conda/bin/conda install -y -n base -c conda-forge mamba || /opt/conda/bin/conda install -y -n base -c conda-forge conda
+
+    echo "### Create conda environment from YAML"
+    # Ensure the YAML includes r-base=3.6.3. The -p path pins env location and avoids name collisions.
+    /opt/conda/bin/mamba env create -f /opt/mCS_venv_test.yaml -p /opt/conda/envs/mCS_venv_test --yes
+
+    echo "### Ensure env was created and list R version"
+    /opt/conda/envs/mCS_venv_test/bin/R --version
+
+    echo "### Install MethylCIBERSORT using env R"
+    /opt/conda/envs/mCS_venv_test/bin/R CMD INSTALL /opt/MethylCIBERSORT_0.2.0.tar.gz
+
+    echo "### Clean conda caches"
+    /opt/conda/bin/conda clean -afy || true
+
+%runscript
+    # default runtime: run R from conda env
+    exec /opt/conda/envs/mCS_venv_test/bin/R "$@"
+
+%test
+    /opt/conda/envs/mCS_venv_test/bin/Rscript -e "cat('R:', R.version.string, '\n'); ip <- installed.packages(); cat('Installed top packages:\\n'); print(head(ip[,c('Package','Version')],20))"

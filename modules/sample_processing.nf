@@ -1,6 +1,223 @@
-nextflow.enable.dsl = 2
-
 include { WF_HUMVAR } from './wf_humvar/wf_humvar.nf'
+
+// ---------------------------------------------------------------------------
+// Processes (DSL2: no 'from' / 'into'; inputs and outputs are positional)
+// ---------------------------------------------------------------------------
+
+process combine_bedmethyls {
+    tag "combine_bedmethyls.${params.sample}"
+    cpus 2
+    memory '8 GB'
+    time '1h'
+    container "file://${projectDir}/containers/general.sandbox"
+    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    input:
+        path b1
+        path b2
+        path b3
+    output:
+        path "${params.sample}.wf_mods.all.bedmethyl.bed", emit: combined_bed
+    script:
+        """
+        bgzip -dc ${b1} ${b2} ${b3} | sort -k1,1 -k2,2n > ${params.sample}.wf_mods.all.bedmethyl.bed
+        """
+}
+
+process convert_bedmethyl_to_DSS {
+    tag "convert_bedmethyl_to_DSS.${params.sample}"
+    cpus 1
+    memory '8 GB'
+    time '1h'
+    container "file://${projectDir}/containers/general.sandbox"
+    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    input:
+        path bed
+    output:
+        path "${params.sample}.wf_mods.all.dss_format.tsv", emit: dss
+    script:
+        """
+        python3 ${projectDir}/bin/convert_DSS.py --input ${bed} --output ${params.sample}.wf_mods.all.dss_format.tsv
+        """
+}
+
+process prep_for_getting_betas {
+    tag "prep_for_getting_betas.${params.sample}"
+    cpus 1
+    memory '8 GB'
+    time '1h'
+    container "file://${projectDir}/containers/general.sandbox"
+    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    input:
+        path epic
+        path dss
+    output:
+        path "${params.sample}.pre_beta.csv", emit: pre_beta
+    script:
+        """
+        python3 ${projectDir}/bin/process_result_before_betas.py --epic ${epic} --dss ${dss} --out ${params.sample}.pre_beta.csv
+        """
+}
+
+process add_betas {
+    tag "add_betas.${params.sample}"
+    cpus 1
+    memory '16 GB'
+    time '2h'
+    container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sandbox"
+    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    input:
+        path pre
+    output:
+        path "${params.sample}.post_beta.csv", emit: post_beta
+    script:
+        """
+        Rscript ${projectDir}/bin/add_betas.R ${pre} ${params.sample}.post_beta.csv
+        """
+}
+
+process modification_calling {
+    tag "modification_calling.${params.sample}"
+    cpus 2
+    memory '16 GB'
+    time '4h'
+    container "file://${projectDir}/containers/general.sandbox"
+    publishDir "results/${params.project_name}/${params.sample}/mod_calling", mode: 'copy'
+    input:
+        path panel_meta
+        path post
+    output:
+        path "${params.sample}.methatlas.csv",      emit: methatlas
+        path "${params.sample}.mod_results.csv",     emit: mod_results
+        path "${params.sample}.rawmod_results.csv",  emit: rawmod
+    script:
+        """
+        python3 ${projectDir}/bin/modification_calling.py \
+            --panel ${panel_meta} --post ${post} \
+            --out-meth ${params.sample}.methatlas.csv \
+            --out-mod  ${params.sample}.mod_results.csv \
+            --out-raw  ${params.sample}.rawmod_results.csv
+        """
+}
+
+process run_methylCS {
+    tag "run_methylCS.${params.sample}"
+    cpus 1
+    memory '8 GB'
+    time '1h'
+    container './containers/methylcibersort.sif'
+    publishDir "results/${params.project_name}/${params.sample}/methylCS", mode: 'copy'
+    input:
+        path beta
+    output:
+        path "${params.sample}.CS_mix_matrix.txt", emit: cs_mix
+        path "${params.sample}.CS_bladder_ref.txt", emit: cs_ref
+    script:
+        """
+        Rscript ${projectDir}/bin/methylcibersort.R ${beta} ${params.sample}.CS_mix_matrix ${params.sample}.CS_bladder_ref.txt ${params.sample}
+        """
+}
+
+process run_CIBERSORTX {
+    tag "run_CIBERSORTX.${params.sample}"
+    cpus 1
+    memory '8 GB'
+    time '2h'
+    container 'docker://cibersortx/fractions'
+    publishDir "results/${params.project_name}/${params.sample}/methylCS", mode: 'copy'
+    input:
+        path mixture
+        path sigmatrix
+        val username
+        val token
+        val sample_name
+    output:
+        path "outdir/*", emit: cibersortx_out
+    script:
+        """
+        cibersortx_fractions \
+            --username ${username} \
+            --token ${token} \
+            --mixture ${mixture.getName()} \
+            --sigmatrix ${sigmatrix.getName()} \
+            --label ${sample_name} \
+            --perm 1 \
+            --QN FALSE \
+            --verbose TRUE
+        """
+}
+
+process snv_annotation {
+    tag "snv_annotation.${params.sample}"
+    cpus 2
+    memory '8 GB'
+    time '2h'
+    container "file://${projectDir}/containers/general.sandbox"
+    publishDir "results/${params.project_name}/${params.sample}/snv_annotation", mode: 'copy'
+    input:
+        path panel_meta
+        path vcf_clin
+        path vcf_clin_tbi
+        path vcf_all
+    output:
+        path "${params.sample}.raw_snv_results.csv", emit: snv_raw
+        path "${params.sample}.snv_results.csv",     emit: snv_panel
+    script:
+        """
+        python3 ${projectDir}/bin/snv_annotation.py \
+            --panel ${panel_meta} \
+            --vcf_clin ${vcf_clin} \
+            --vcf_all ${vcf_all} \
+            --out_raw ${params.sample}.raw_snv_results.csv \
+            --out_panel ${params.sample}.snv_results.csv
+        """
+}
+
+process sv_annotation {
+    tag "sv_annotation.${params.sample}"
+    cpus 2
+    memory '8 GB'
+    time '2h'
+    container "file://${projectDir}/containers/general.sandbox"
+    publishDir "results/${params.project_name}/${params.sample}/sv_annotation", mode: 'copy'
+    input:
+        path panel_meta
+        path vcf_sv
+    output:
+        path "${params.sample}.raw_sv_results.csv", emit: sv_raw
+        path "${params.sample}.sv_results.csv",     emit: sv_panel
+    script:
+        """
+        python3 ${projectDir}/bin/sv_annotation.py \
+            --panel ${panel_meta} \
+            --vcf_sv ${vcf_sv} \
+            --out ${params.sample}.raw_sv_results.csv
+        """
+}
+
+process immune_infiltrate_mCS {
+    tag "immune_infiltrate_mCS.${params.sample}"
+    cpus 1
+    memory '8 GB'
+    time '1h'
+    container "file://${projectDir}/containers/general.sandbox"
+    publishDir "results/${params.project_name}/${params.sample}/immune_infiltrate", mode: 'copy'
+    input:
+        path panel_meta
+        path mcs
+    output:
+        path "${params.sample}.immune_panel_results.csv", emit: immune
+    script:
+        """
+        python3 ${projectDir}/bin/get_immune_infiltrate.mCS.py \
+            --deconv ${mcs} \
+            --out ${params.sample}.immune_panel_results.csv \
+            --panel ${panel_meta}
+        """
+}
+
+// ---------------------------------------------------------------------------
+// Sub-workflows
+// ---------------------------------------------------------------------------
 
 workflow wf_humvar {
     take:
@@ -22,351 +239,92 @@ workflow wf_humvar {
         )
 
     emit:
-        WF_HUMVAR.out
-
-    // Wire the output from wf_humvar to downstream channels
-    wf_humvar_out_ch = WF_HUMVAR.out
-    // wf_humvar_out_ch.view { println "wf_humvar output: ${it}" }
+        humvar_files = WF_HUMVAR.out
 }
 
+// ---------------------------------------------------------------------------
+// Main sample_processing workflow
+// ---------------------------------------------------------------------------
+
 workflow sample_processing {
-    take: panel_metadata_ch
-    emit: sample_done_ch
+    take:
+        panel_metadata_ch
 
-    // Expect params.sample and params.project_name
-    def SAMPLE = params.sample
-    def PROJECT = params.project_name
+    main:
+        def SAMPLE  = params.sample
+        def PROJECT = params.project_name
 
-    if (!SAMPLE) {
-        error 'params.sample must be set to run sample_processing'
-    }
+        if (!SAMPLE) {
+            error 'params.sample must be set to run sample_processing'
+        }
 
-    // Input paths
-    def bam_pass_dir = params.bam_directory ?: "results/${PROJECT}/${SAMPLE}/bam_pass"
-    def reference = file('resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna')
-    def targets_bed = file("results/${PROJECT}/minknow_input/targets.bed")
-    def tandem_repeat_bed = file('resources/hg38.trf.bed.gz')
+        // Input paths
+        def bam_pass_dir     = file(params.bam_directory)
+        def reference        = file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
+        def targets_bed      = file(params.target_bedfile)
+        def tandem_repeat_bed = file("${projectDir}/resources/hg38.trf.bed.gz")
+        def epic_file        = file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
 
-    Channel.of(file(bam_pass_dir)).set { bam_dir_ch }
-    Channel.of(reference).set { ref_ch }
-    Channel.of(targets_bed).set { targets_ch }
-    Channel.of(tandem_repeat_bed).set { tr_ch }
-    Channel.of(SAMPLE).set { sample_name_ch }
-    Channel.of(PROJECT).set { project_name_ch }
+        Channel.of(bam_pass_dir).set       { bam_dir_ch }
+        Channel.of(reference).set          { ref_ch }
+        Channel.of(targets_bed).set        { targets_ch }
+        Channel.of(tandem_repeat_bed).set  { tr_ch }
+        Channel.of(SAMPLE).set             { sample_name_ch }
+        Channel.of(PROJECT).set            { project_name_ch }
 
-    // Call wf_humvar subworkflow
-    wf_humvar(bam_dir_ch, ref_ch, targets_ch, tr_ch, sample_name_ch, project_name_ch)
+        // 1. Call wf_humvar sub-workflow
+        wf_humvar(bam_dir_ch, ref_ch, targets_ch, tr_ch, sample_name_ch, project_name_ch)
 
-    // Wire the output from wf_humvar to downstream channels
-    wf_humvar_out_ch.view { println "wf_humvar output: ${it}" }
+        // WF_HUMVAR emits a flat list of files from results/<project>/<sample>/wf-humvar/*
+        // Collect them into a single list, then filter by filename pattern.
+        wf_humvar_files = wf_humvar.out.humvar_files.flatten().collect()
 
-    // Map wf_humvar outputs to expected file channels (fallback to known paths)
-    def mods1_ch = wf_humvar_out_ch.map { it -> file(it?.mods1 ?: "results/${PROJECT}/${SAMPLE}/wf-humvar/${SAMPLE}.wf_mods.1.bedmethyl.gz") }
-    def mods2_ch = wf_humvar_out_ch.map { it -> file(it?.mods2 ?: "results/${PROJECT}/${SAMPLE}/wf-humvar/${SAMPLE}.wf_mods.2.bedmethyl.gz") }
-    def mods_ungrouped_ch = wf_humvar_out_ch.map { it -> file(it?.mods_ungrouped ?: "results/${PROJECT}/${SAMPLE}/wf-humvar/${SAMPLE}.wf_mods.ungrouped.bedmethyl.gz") }
-    def vcf_clin_ch = wf_humvar_out_ch.map { it -> file(it?.vcf_clinvar ?: "results/${PROJECT}/${SAMPLE}/wf-humvar/${SAMPLE}.wf_snp_clinvar.vcf.gz") }
-    def vcf_clin_tbi_ch = wf_humvar_out_ch.map { it -> file(it?.vcf_clinvar_tbi ?: "results/${PROJECT}/${SAMPLE}/wf-humvar/${SAMPLE}.wf_snp_clinvar.vcf.gz.tbi") }
-    def vcf_all_ch = wf_humvar_out_ch.map { it -> file(it?.vcf_all ?: "results/${PROJECT}/${SAMPLE}/wf-humvar/${SAMPLE}.wf_snp.vcf.gz") }
+        mods1_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_mods\.1\.bedmethyl\.gz$/ }
+        }
+        mods2_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_mods\.2\.bedmethyl\.gz$/ }
+        }
+        mods_ungrouped_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_mods\.ungrouped\.bedmethyl\.gz$/ }
+        }
+        vcf_clin_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_snp_clinvar\.vcf\.gz$/ }
+        }
+        vcf_clin_tbi_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_snp_clinvar\.vcf\.gz\.tbi$/ }
+        }
+        vcf_all_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_snp\.vcf\.gz$/ }
+        }
 
-    // combine_bedmethyls
-    process combine_bedmethyls {
-        tag "combine_bedmethyls.${SAMPLE}"
-        cpus 2
-        memory '8 GB'
-        time '1h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}/mod_calling", mode: 'copy'
-        input:
-            path b1 from mods1_ch
-            path b2 from mods2_ch
-            path b3 from mods_ungrouped_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.wf_mods.all.bedmethyl.bed" into combined_bed_ch
-        script:
-            """
-            mkdir -p results/${PROJECT}/${SAMPLE}/mod_calling
-            bgzip -dc ${b1} ${b2} ${b3} | sort -k1,1 -k2,2n > results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.wf_mods.all.bedmethyl.bed
-            """
-    }
+        // 2. Methylation pipeline
+        combine_bedmethyls(mods1_ch, mods2_ch, mods_ungrouped_ch)
+        convert_bedmethyl_to_DSS(combine_bedmethyls.out.combined_bed)
+        prep_for_getting_betas(Channel.of(epic_file), convert_bedmethyl_to_DSS.out.dss)
+        add_betas(prep_for_getting_betas.out.pre_beta)
+        modification_calling(panel_metadata_ch, add_betas.out.post_beta)
+        run_methylCS(modification_calling.out.methatlas)
 
-    process convert_bedmethyl_to_DSS {
-        tag "convert_bedmethyl_to_DSS.${SAMPLE}"
-        cpus 1
-        memory '8 GB'
-        time '1h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}/mod_calling", mode: 'copy'
-        input:
-            path bed from combined_bed_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.wf_mods.all.dss_format.tsv" into dss_ch
-        script:
-            """
-            python3 bin/convert_DSS.py --input ${bed} --output results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.wf_mods.all.dss_format.tsv
-            """
-    }
+        // 3. CIBERSORTx deconvolution
+        run_CIBERSORTX(
+            run_methylCS.out.cs_mix,
+            run_methylCS.out.cs_ref,
+            params.cibersortx_username,
+            params.cibersortx_token,
+            SAMPLE
+        )
 
-    process prep_for_getting_betas {
-        tag "prep_for_getting_betas.${SAMPLE}"
-        cpus 1
-        memory '8 GB'
-        time '1h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}/mod_calling", mode: 'copy'
-        input:
-            path epic from Channel.fromPath('resources/IlluminaEPIC_genomic_locations_hg38.csv')
-            path dss from dss_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.pre_beta.csv" into pre_beta_ch
-        script:
-            """
-            python3 bin/process_result_before_betas.py --epic ${epic} --dss ${dss} --out results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.pre_beta.csv
-            """
-    }
+        // 4. SNV / SV annotation
+        snv_annotation(panel_metadata_ch, vcf_clin_ch, vcf_clin_tbi_ch, vcf_all_ch)
+        sv_annotation(panel_metadata_ch, vcf_all_ch)
 
-    process add_betas {
-        tag "add_betas.${SAMPLE}"
-        cpus 1
-        memory '16 GB'
-        time '2h'
-        container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}/mod_calling", mode: 'copy'
-        input:
-            path pre from pre_beta_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.post_beta.csv" into post_beta_ch
-        script:
-            """
-            Rscript bin/add_betas.R results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.pre_beta.csv results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.post_beta.csv
-            """
-    }
+        // 5. Immune infiltrate
+        immune_infiltrate_mCS(panel_metadata_ch, run_CIBERSORTX.out.cibersortx_out)
 
-    process modification_calling {
-        tag "modification_calling.${SAMPLE}"
-        cpus 2
-        memory '16 GB'
-        time '4h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}/mod_calling", mode: 'copy'
-        input:
-            path panel_meta from Channel.fromPath(params.panel_metadata)
-            path post from post_beta_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.methatlas.csv" into methatlas_ch
-            path "results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.mod_results.csv" into mod_results_ch
-            path "results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.rawmod_results.csv" into rawmod_ch
-        script:
-            """
-            mkdir -p results/${PROJECT}/${SAMPLE}/mod_calling
-            python3 bin/modification_calling.py --panel ${panel_meta} --post ${post} --out-meth results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.methatlas.csv --out-mod results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.mod_results.csv --out-raw results/${PROJECT}/${SAMPLE}/mod_calling/${SAMPLE}.rawmod_results.csv
-            """
-    }
-
-    process run_methylCS {
-        tag "run_methylCS.${SAMPLE}"
-        cpus 1
-        memory '8 GB'
-        time '1h'
-        // container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sandbox"
-        container './containers/methylcibersort.sif'
-        // container './containers/methylcibersort.sandbox'
-        publishDir "results/${PROJECT}/${SAMPLE}/methylCS", mode: 'copy'
-        input:
-            path beta from methatlas_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/methylCS/${SAMPLE}.CS_mix_matrix.txt" into cs_mix_ch
-            path "results/${PROJECT}/${SAMPLE}/methylCS/${SAMPLE}.CS_bladder_ref.txt" into cs_ref_ch
-        script:
-            """
-            mkdir -p results/${PROJECT}/${SAMPLE}/methylCS
-            Rscript bin/methylcibersort.R ${beta} results/${PROJECT}/${SAMPLE}/methylCS/${SAMPLE}.CS_mix_matrix results/${PROJECT}/${SAMPLE}/methylCS/${SAMPLE}.CS_bladder_ref.txt ${SAMPLE}
-            """
-    }
-
-    process run_CIBERSORTX {
-        tag "run_CIBERSORTX.${SAMPLE}"
-        cpus 1
-        memory '8 GB'
-        time '2h'
-        container params.cibersortx_container ?: 'docker://cibersortx/fractions'
-        publishDir "results/${PROJECT}/${SAMPLE}/methylCS", mode: 'copy'
-        input:
-            path mix from cs_mix_ch
-            path sig from cs_ref_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/methylCS/CIBERSORTx_${SAMPLE}_Results.csv" into cibersortx_ch
-        script:
-            """
-            set -euo pipefail
-            mkdir -p results/${PROJECT}/${SAMPLE}/methylCS
-            cd results/${PROJECT}/${SAMPLE}/methylCS
-
-            MIX_BASENAME=$(basename ${mix})
-            SIG_BASENAME=$(basename ${sig})
-
-            # Pass arguments directly to the container ENTRYPOINT (do not call a binary)
-            --username ${params.cibersortx_username} --token ${params.cibersortx_token} \
-                --mixture /src/data/${MIX_BASENAME} --sigmatrix /src/data/${SIG_BASENAME} \
-                --label ${SAMPLE} --perm 1 --QN FALSE --verbose TRUE --outdir /src/outdir
-            """
-    }
-
-    process run_CIBERSORTX {
-        tag "run_CIBERSORTX.${SAMPLE}"
-        cpus 1
-        memory '8 GB'
-        time '2h'
-        container 'docker://cibersortx/fractions'
-        containerOptions = "-B ${mixture.parent}:/src/data -B ${task.workDir}:/src/outdir"
-        publishDir "results/${PROJECT}/${SAMPLE}/methylCS", mode: 'copy'
-
-        input:
-        path mixture from cs_mix_ch
-        path sigmatrix from cs_ref_ch
-        val username params.cibersortx_username
-        val token params.cibersortx_token
-        val sample_name SAMPLE
-        val permutations 1 // TODO update num of perms
-
-        output:
-        path "outdir"
-
-        script:
-        """
-        cibersortx_fractions \
-            --username ${username} \
-            --token ${token} \
-            --mixture ${mixture.getName()} \
-            --sigmatrix ${sigmatrix.getName()} \
-            --label ${sample_name} \
-            --perm ${permutations} \
-            --QN FALSE \
-            --verbose TRUE
-        """
-    }
-
-    process snv_annotation {
-        tag "snv_annotation.${SAMPLE}"
-        cpus 2
-        memory '8 GB'
-        time '2h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}/snv_annotation", mode: 'copy'
-        input:
-            path panel_meta from Channel.fromPath(params.panel_metadata)
-            path vcf_clin from vcf_clin_ch
-            path vcf_clin_tbi from vcf_clin_tbi_ch
-            path vcf_all from vcf_all_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/snv_annotation/${SAMPLE}.raw_snv_results.csv" into snv_raw_ch
-            path "results/${PROJECT}/${SAMPLE}/snv_annotation/${SAMPLE}.snv_results.csv" into snv_panel_ch
-        script:
-            """
-            mkdir -p results/${PROJECT}/${SAMPLE}/snv_annotation
-            python3 bin/snv_annotation.py --panel ${panel_meta} --vcf_clin ${vcf_clin} --vcf_all ${vcf_all} --out_raw results/${PROJECT}/${SAMPLE}/snv_annotation/${SAMPLE}.raw_snv_results.csv --out_panel results/${PROJECT}/${SAMPLE}/snv_annotation/${SAMPLE}.snv_results.csv
-            """
-    }
-
-    process sv_annotation {
-        tag "sv_annotation.${SAMPLE}"
-        cpus 2
-        memory '8 GB'
-        time '2h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}/sv_annotation", mode: 'copy'
-        input:
-            path panel_meta from Channel.fromPath(params.panel_metadata)
-            path vcf_sv from vcf_all_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/sv_annotation/${SAMPLE}.raw_sv_results.csv" into sv_raw_ch
-            path "results/${PROJECT}/${SAMPLE}/sv_annotation/${SAMPLE}.sv_results.csv" into sv_panel_ch
-        script:
-            """
-            mkdir -p results/${PROJECT}/${SAMPLE}/sv_annotation
-            python3 bin/sv_annotation.py --panel ${panel_meta} --vcf_sv ${vcf_sv} --out results/${PROJECT}/${SAMPLE}/sv_annotation/${SAMPLE}.raw_sv_results.csv
-            """
-    }
-
-    process immune_infiltrate_mCS {
-        tag "immune_infiltrate_mCS.${SAMPLE}"
-        cpus 1
-        memory '8 GB'
-        time '1h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}/immune_infiltrate", mode: 'copy'
-        input:
-            path panel_meta from Channel.fromPath(params.panel_metadata)
-            path mcs from cibersortx_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/immune_infiltrate/${SAMPLE}.immune_panel_results.csv" into immune_ch
-        script:
-            """
-            mkdir -p results/${PROJECT}/${SAMPLE}/immune_infiltrate
-            python3 bin/get_immune_infiltrate.mCS.py --deconv ${mcs} --out results/${PROJECT}/${SAMPLE}/immune_infiltrate/${SAMPLE}.immune_panel_results.csv --panel ${panel_meta}
-            """
-    }
-
-    process collate_results_for_BM_classifier {
-        tag "collate_results.${SAMPLE}"
-        cpus 1
-        memory '8 GB'
-        time '1h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}", mode: 'copy'
-        input:
-            path panel_meta from Channel.fromPath(params.panel_metadata)
-            path snv_res from snv_panel_ch
-            path mod_res from mod_results_ch
-            path immune_res from immune_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/panel_results.csv" into panel_results_ch
-        script:
-            """
-            mkdir -p results/${PROJECT}/${SAMPLE}
-            python3 bin/collate_results_for_BM_classifier.py --panel ${panel_meta} --snv ${snv_res} --mod ${mod_res} --immune ${immune_res} --out results/${PROJECT}/${SAMPLE}/panel_results.csv
-            """
-    }
-
-    process get_scores {
-        tag "get_scores.${SAMPLE}"
-        cpus 1
-        memory '8 GB'
-        time '1h'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "results/${PROJECT}/${SAMPLE}", mode: 'copy'
-        input:
-            path panel_meta from Channel.fromPath(params.panel_metadata)
-            path snv_res from snv_panel_ch
-            path mod_res from mod_results_ch
-            path immune_res from immune_ch
-        output:
-            path "results/${PROJECT}/${SAMPLE}/${SAMPLE}.scores.csv" into scores_ch
-        script:
-            """
-            mkdir -p results/${PROJECT}/${SAMPLE}
-            python3 bin/get_scores.py --panel ${panel_meta} --snv ${snv_res} --mod ${mod_res} --immune ${immune_res} --out results/${PROJECT}/${SAMPLE}/${SAMPLE}.scores.csv
-            """
-    }
-
-    process generate_report {
-        tag "generate_report.${SAMPLE}"
-        cpus 1
-        memory '4 GB'
-        time '30m'
-        container "file://${projectDir}/containers/general.sandbox"
-        publishDir "workflow/report", mode: 'copy'
-        input:
-            path panel_meta from Channel.fromPath(params.panel_metadata)
-            path template from Channel.fromPath('resources/template.md')
-            path scores from scores_ch
-        output:
-            path "workflow/report/${SAMPLE}.report.md" into report_ch
-        script:
-            """
-            mkdir -p workflow/report
-            python3 bin/generate_report.py --panel ${panel_meta} --template ${template} --scores ${scores} --out workflow/report/${SAMPLE}.report.md --sample ${SAMPLE}
-            """
-    }
-
-    sample_done_ch = report_ch
+    emit:
+        snv_panel    = snv_annotation.out.snv_panel
+        sv_panel     = sv_annotation.out.sv_panel
+        mod_results  = modification_calling.out.mod_results
+        immune       = immune_infiltrate_mCS.out.immune
 }

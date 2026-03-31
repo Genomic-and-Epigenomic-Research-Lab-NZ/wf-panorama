@@ -1,5 +1,3 @@
-nextflow.enable.dsl = 2
-
 process WF_HUMVAR {
     tag { "${sample_name}" }
     cpus 4

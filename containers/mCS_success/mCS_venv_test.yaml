@@ -1,0 +1,13 @@
+name: mCS_venv_test
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+channel_priority: strict
+dependencies:
+  - bioconductor-minfi=1.32.0
+  - r-base=3.6.3
+  - r-caret=6.0_88
+  - r-glmnet=4.1_1
+  - r-doparallel=1.0.16
+  - r-nmf=0.21.0

@@ -10,3 +10,10 @@ template-workflow
 resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
 resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai
 resources/hg38.trf.bed
+containers/mCS_mess/methylcibersort.sif
+resources/CIBERSORT/docker_help.txt
+resources/CIBERSORT/lucys_installation.md
+.gitignore
+containers/mCS_success/MethylCIBERSORT_0.2.0.tar.gz
+containers/methylcibersort.sif
+resources/MethylCIBERSORT_Release/MethylCIBERSORT_0.2.0.tar.gz
