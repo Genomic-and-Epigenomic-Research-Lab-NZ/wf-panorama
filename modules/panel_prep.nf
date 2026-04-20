@@ -53,7 +53,7 @@ process make_panel_bed {
     time '1h'
     container "file://${projectDir}/containers/general.sandbox"
     // Only publish the all_targets BED (targets_for_align.bed); suppress biomarker_panel.bed
-    publishDir "${params.out_dir}/${params.project_name}/minknow_input", mode: 'copy',
+    publishDir "${params.out_dir}/minknow_input", mode: 'copy',
         saveAs: { filename -> filename == "biomarker_panel.bed" ? null : filename }
 
     input:
@@ -121,7 +121,7 @@ process check_coverage {
     debug true
     container "file://${projectDir}/containers/general.sandbox"
     // Only publish the final buffered targets BED (targets_buffed.bed)
-    publishDir "${params.out_dir}/${params.project_name}/minknow_input", mode: 'copy'
+    publishDir "${params.out_dir}/minknow_input", mode: 'copy'
 
     input:
         path minknow_bed_file
