@@ -3,7 +3,6 @@
 CLI wrapper for make_panel_bed functionality adapted from workflow/scripts/make_panel_bed.py
 """
 import argparse
-import os
 import pandas as pd
 import numpy as np
 
@@ -99,9 +98,6 @@ if __name__ == '__main__':
     parser.add_argument('--panel-bed', required=True)
     parser.add_argument('--all-targets', required=True)
     args = parser.parse_args()
-
-    os.makedirs(os.path.dirname(args.panel_bed), exist_ok=True)
-    os.makedirs(os.path.dirname(args.all_targets), exist_ok=True)
 
     panel_csv = pd.read_csv(args.panel_csv, dtype={'ID': str}, thousands = ',')
     panel_csv = panel_csv[~panel_csv.ID.str.startswith("4")]

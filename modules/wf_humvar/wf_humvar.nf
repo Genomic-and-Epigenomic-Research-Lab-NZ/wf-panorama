@@ -1,9 +1,44 @@
-process WF_HUMVAR {
-    tag { "${sample_name}" }
+#!/usr/bin/env nextflow
+nextflow.enable.dsl = 2
+
+/*
+ * WF_HUMVAR subworkflow
+ * - Runs epi2me-labs/wf-human-variation inside a process
+ * - Emits a channel of files produced under `wf-humvar/**`
+ */
+
+workflow WF_HUMVAR {
+    take:
+        bam_dir_ch
+        ref_ch
+        targets_ch
+        tr_ch
+        sample_name_ch
+        project_name_ch
+
+    main:
+        // Invoke the RUN_WF_HUMVAR process and capture its output channel
+        RUN_WF_HUMVAR(
+            bam_dir_ch,
+            ref_ch,
+            targets_ch,
+            tr_ch,
+            sample_name_ch,
+            project_name_ch
+        )
+
+    emit:
+        // Export the process output channel
+        humvar_files = RUN_WF_HUMVAR.out.humvar_files
+}
+
+process RUN_WF_HUMVAR {
+    tag { "wf-human-variation.${sample_name}" }
     cpus 4
     memory '32 GB'
     time '12h'
-    container 'epi2me-labs/wf-human-variation:sha2b856c1f358ddf1576217a336bc0e9864b6dc0ed'
+    cache 'lenient'  // Cache outputs even if the process script changes (since the script is just a wrapper around a stable wf-human-variation run dir)
+    storeDir "${params.out_dir}/${params.sample}/.nextflow_cache"
 
     input:
         path bam_dir
@@ -14,59 +49,61 @@ process WF_HUMVAR {
         val project_name
 
     output:
-        path "results/${project_name}/${sample_name}/wf-humvar/*"
+        path "wf-humvar", emit: humvar_files
 
     script:
+    // humvar_run_dir is OUTSIDE the task work dir so it is stable across
+    // outer pipeline retries — this is what allows -resume to work on the
+    // nested wf-human-variation run.
+    def humvar_run_dir = "${file(params.out_dir).toAbsolutePath()}/${params.sample}/wf-humvar-run"
     """
-    mkdir -p results/${project_name}/${sample_name}/wf-humvar
+    set -euo pipefail
 
-    wf-human-variation --bam ${bam_dir} \
-            --ref ${ref} \
-            --bed ${targets} \
-            --tr ${tr} \
-            --sample_name ${sample_name} \
-            --project_name ${project_name} \
-            --out_dir results/${project_name}/${sample_name}/wf-humvar \
-            --threads ${params.wf_humvar_threads ?: 8}
+    # Stable directories for the nested run (outside task workDir)
+    mkdir -p \
+            ${humvar_run_dir}/.nextflow_home \
+            ${humvar_run_dir}/work \
+            ${humvar_run_dir}/execution
+
+    # Pin NXF_HOME and NXF_WORK to stable locations so -resume finds the
+    # nested pipeline's cache even if the outer task work dir changes.
+    export NXF_HOME="${humvar_run_dir}/.nextflow_home"
+    export NXF_WORK="${humvar_run_dir}/work"
+    export NXF_SINGULARITY_CACHEDIR="${projectDir}/containers/singularity"
+
+    # Output dir for this task (relative, inside task workDir — captured by Nextflow)
+    mkdir -p wf-humvar
+
+    echo "Running wf-human-variation for sample ${sample_name} with BAM dir ${bam_dir}"
+
+    nextflow run ${moduleDir}/wf-human-variation \
+        --bam ${bam_dir} \
+        --ref ${ref} \
+        --bed ${targets} \
+        --sample_name ${sample_name} \
+        --project_name ${project_name} \
+        --out_dir wf-humvar \
+        --sv \
+        --snp \
+        --mod \
+        --str \
+        --phased \
+        --output_gene_summary \
+        --output_xam_fmt bam \
+        --modkit_args "--preset traditional" \
+        --bam_min_coverage ${params.wf_humvar_bam_min_coverage} \
+        --override_basecaller_cfg "${params.ont_basecaller}" \
+        -profile ${params.wf_humvar_profile} \
+        -process.executor slurm \
+        -w \$NXF_WORK \
+        -with-report ${humvar_run_dir}/execution/report.html \
+        -with-timeline ${humvar_run_dir}/execution/timeline.html \
+        -with-trace ${humvar_run_dir}/execution/trace.txt \
+        ${params.wf_humvar_resume ? '-resume' : ''}
+
+    # Ensure outputs are visible to the outer Nextflow
+    ls -R wf-humvar
     """
 }
 
-// Old nested workflow
-
-// nextflow.enable.dsl = 2
-
-// workflow wf_humvar {
-//     take: bam_dir_ch, ref_ch, targets_ch, tr_ch, sample_name_ch, project_name_ch
-//     emit: wf_humvar_out_ch
-
-//     process exec_humvar {
-//         tag { "wf-humvar-${task.process}" }
-//         cpus 4
-//         memory '32 GB'
-//         time '12h'
-//         container params.epi2me_container ?: 'library/epi2me-wf:latest'
-//         publishDir { params.publish_dir ?: "results/${project_name_ch}/${sample_name_ch}/wf-humvar" }, mode: 'copy'
-
-//         input:
-//             path bam_dir from bam_dir_ch
-//             path ref from ref_ch
-//             path targets from targets_ch
-//             path tr from tr_ch
-//             val sample_name from sample_name_ch
-//             val project_name from project_name_ch
-
-//         output:
-//             path "results/${project_name}/${sample_name}/wf-humvar/*" into wf_outputs
-
-//         script:
-//             // --override_basecaller_cfg not included
-//             """
-//             mkdir -p results/${project_name}/${sample_name}/wf-humvar
-//             # Run nested Nextflow pipeline using Singularity to provide Nextflow runtime
-//             singularity exec --cleanenv ${container} \
-//                 bash -lc "nextflow run epi2me-labs/wf-human-variation -r sha2b856c1f358ddf1576217a336bc0e9864b6dc0ed --bam '${bam_dir}' --ref '${ref}' --bed '${targets}' --out_dir results/${project_name}/${sample_name}/wf-humvar --sample_name '${sample_name}' --sv --snp --mod --str --phased --output_gene_summary --output_xam_fmt bam --modkit_args --preset 'traditional' --threads ${params.wf_humvar_threads ?: 8} -profile ${params.wf_humvar_profile ?: 'standard'}"
-//             """
-//     }
-
-//     wf_humvar_out_ch = wf_outputs
-// }
+// process.executor slurm may not work or be appropriate for running on other systems. Use with caution.

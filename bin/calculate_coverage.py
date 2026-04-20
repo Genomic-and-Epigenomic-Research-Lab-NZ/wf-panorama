@@ -39,6 +39,12 @@ CHROM_LENGTHS = {
 }
 
 
+def log_print(message, log):
+    """Write message to both the log file and terminal (stdout)."""
+    print(message, end='')
+    log.write(message)
+
+
 def calc_coverage(variants_bed, log):
     chr_coverage = dict()
     total_length = 0
@@ -55,14 +61,13 @@ def calc_coverage(variants_bed, log):
     for chr in CHROMOSOMES:
         if chr not in chr_coverage:
             chr_coverage[chr] = 0
-        log.write(f'total length in {chr}: {chr_coverage[chr]}\n')
-        log.write(f'percent coverage: {(chr_coverage[chr]/CHROM_LENGTHS[chr])*100}\n\n')
+        perc_cov_chr = round((chr_coverage[chr]/CHROM_LENGTHS[chr])*100, 2)
+        log_print(f'Length in {chr} total bp (% of chromosome): {chr_coverage[chr]} ({perc_cov_chr}%)\n', log)
+        # log_print(f'percent coverage: {(chr_coverage[chr]/CHROM_LENGTHS[chr])*100}\n\n', log)
 
-    print(f'total length of areas in bed file {total_length:,} bp')
-    log.write(f'total length of areas in bed file {total_length:,} bp\n')
     perc_HG = round((total_length/HG_LENGTH)*100, 2)
-    print(f'percent of HG: {perc_HG}%')
-    log.write(f'percent of HG: {perc_HG}%\n')
+    log_print(f'Number of bp covered in total (% of human genome) {total_length:,} bp ({perc_HG}%)\n', log)
+    # log_print(f'percent of HG: {perc_HG}%\n', log)
     return perc_HG
 
 
@@ -76,17 +81,16 @@ if __name__ == '__main__':
     parser.add_argument('--log', required=False, default='coverage.log')
     args = parser.parse_args()
 
-    os.makedirs(os.path.dirname(args.output_bed), exist_ok=True)
     log = open(args.log, 'w')
 
     bed_df = pd.read_csv(args.input_bed, sep='\t', names=['#chrom', 'chromStart', 'chromEnd', 'name'])
     perc_HG = calc_coverage(bed_df, log)
 
     if args.min_cov < perc_HG < args.max_cov:
-        log.write(f"Yay we found it! Final coverage: {perc_HG}%\n")
+        log_print(f"Yay we found the sweet spot! Final coverage: {perc_HG}%\n", log)
         os.system(f'cp {args.input_bed} {args.output_bed}')
     else:
-        log.write('Criteria not met. Please adjust buffersize_bp in config and rerun.\n')
+        log_print('Criteria not met. Please adjust buffersize_bp parameter and rerun.\n', log)
         with open(args.output_bed, 'w') as fw:
             fw.write('Criteria not met.')
 

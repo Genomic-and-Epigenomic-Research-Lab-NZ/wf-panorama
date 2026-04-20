@@ -26,8 +26,10 @@ process combine_bedmethyls {
 process convert_bedmethyl_to_DSS {
     tag "convert_bedmethyl_to_DSS.${params.sample}"
     cpus 1
-    memory '8 GB'
+    memory { 8.GB * task.attempt }
     time '1h'
+    errorStrategy { task.exitStatus in [137, 138, 139, 140, 143] ? 'retry' : 'terminate' }  // Retry on common OOM exit codes, with increasing memory on each retry
+    maxRetries 3
     container "file://${projectDir}/containers/general.sandbox"
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
@@ -184,7 +186,7 @@ process sv_annotation {
         path vcf_sv
     output:
         path "${params.sample}.raw_sv_results.csv", emit: sv_raw
-        path "${params.sample}.sv_results.csv",     emit: sv_panel
+        // path "${params.sample}.sv_results.csv",     emit: sv_panel  // TODO: Turned off for now until we get some SV data we can investigate
     script:
         """
         python3 ${projectDir}/bin/sv_annotation.py \
@@ -262,7 +264,8 @@ workflow sample_processing {
         def bam_pass_dir     = file(params.bam_directory)
         def reference        = file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
         def targets_bed      = file(params.target_bedfile)
-        def tandem_repeat_bed = file("${projectDir}/resources/hg38.trf.bed.gz")
+        // def tandem_repeat_bed = file("${projectDir}/resources/hg38.trf.bed.gz")
+        def tandem_repeat_bed = file("${projectDir}/resources/hg38.trf.bed")
         def epic_file        = file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
 
         Channel.of(bam_pass_dir).set       { bam_dir_ch }
@@ -324,7 +327,8 @@ workflow sample_processing {
 
     emit:
         snv_panel    = snv_annotation.out.snv_panel
-        sv_panel     = sv_annotation.out.sv_panel
+        // sv_panel     = sv_annotation.out.sv_panel
+        sv_panel     = sv_annotation.out.sv_raw
         mod_results  = modification_calling.out.mod_results
         immune       = immune_infiltrate_mCS.out.immune
 }

@@ -28,7 +28,7 @@ def add_illumina_probes(dss_df, EPIClocs_df):
     df = merged_df_clean[['probe', 'chr','pos','strand','N','X']]
     return df
 
-os.makedirs(os.path.dirname(args.out), exist_ok=True)
+# os.makedirs(os.path.dirname(args.out), exist_ok=True)
 
 # Use depth=1 for development as original had TODO
 dss_df_30x = filter_dss_to_x_depth(dss_df.copy(), depth=1)

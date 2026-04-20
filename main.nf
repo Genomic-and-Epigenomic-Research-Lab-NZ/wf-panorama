@@ -3,14 +3,15 @@
 // Panorama workflow – DSL2
 // Runs sample_processing and then either:
 //   - collates results for a BM classifier input (default), or
-//   - generates a per-sample clinical report (--get_sample_report true)
+//   - generates a per-sample clinical report (--clinical_mode true)
 
 nextflow.enable.dsl = 2
 
-include { sample_processing }    from './modules/sample_processing.nf'
-include { make_classifier_input } from './modules/make_classifier_input.nf'
-include { get_scores }           from './modules/make_sample_report.nf'
-include { generate_report }      from './modules/make_sample_report.nf'
+include { panel_prep }              from './modules/panel_prep.nf'
+include { sample_processing }       from './modules/sample_processing.nf'
+include { make_classifier_input }   from './modules/make_classifier_input.nf'
+include { get_scores }              from './modules/make_sample_report.nf'
+include { generate_report }         from './modules/make_sample_report.nf'
 
 
 // Use publishDir when possible in the process but this is for when is needed output
@@ -31,6 +32,7 @@ process publish {
         tuple path(fname), val(dirname)
     output:
         path fname
+    script:
     """
     echo "Writing output files"
     """
@@ -39,6 +41,27 @@ process publish {
 // ---------------------------------------------------------------------------
 // Named sub-workflows that compose sample_processing with downstream steps
 // ---------------------------------------------------------------------------
+
+workflow generate_target_bed {
+    take:
+        panel_metadata_ch
+        publish_dir_ch
+    main:
+        // Run panel prep to generate target bed for MinKNOW adaptive sampling
+        panel_prep(panel_metadata_ch)
+
+        // Publish target bed and fasta for MinKNOW adaptive sampling
+        panel_prep.out.minknow_bed
+            | map { f -> tuple(f, "${params.project_name}/minknow_input") } 
+            | publish
+        // panel_prep.out.minknow_fasta
+        //     | map { f -> tuple(f, "${params.project_name}/minknow_input") } 
+        //     | publish
+
+    emit:
+        minknow_bed = panel_prep.out.minknow_bed
+        // minknow_fasta = panel_prep.out.minknow_fasta
+}
 
 workflow get_classifier_input_sample_data {
     take:
@@ -100,12 +123,52 @@ workflow get_patient_report {
 // ---------------------------------------------------------------------------
 
 workflow {
-    // Validate required params
-    if (!params.sample) {
-        error "Please provide --sample <sample_name>"
+    // Validate required params (all modes)
+    if (!params.project_name) {
+        error "Please provide --project_name <project_title>"
     }
     if (!params.panel_metadata) {
         error "Please provide --panel_metadata <path_to_csv>"
+    }
+
+    // Validate that exactly one mode is specified
+    def modeCount = [params.make_target_bed, params.clin_trial_mode, params.clinical_mode].count { it }
+    if (modeCount == 0) {
+        error "Please specify a mode of operation: --make_target_bed, --clin_trial_mode, or --clinical_mode."
+    }
+    if (modeCount > 1) {
+        error "Please specify only one mode of operation: --make_target_bed, --clin_trial_mode, or --clinical_mode."
+    }
+
+    // Validate mode-specific required params
+    if (params.make_target_bed) {
+        // No additional required params for target bed generation
+    } else if (params.clin_trial_mode) {
+        if (!params.sample) {
+            error "Please provide --sample <sample_name> when using --clin_trial_mode"
+        }
+        if (!params.bam_directory) {
+            error "Please provide --bam_directory <path_to_bam_folder> when using --clin_trial_mode"
+        }
+        if (!params.cibersortx_username) {
+            error "Please provide --cibersortx_username <username> when using --clin_trial_mode"
+        }
+        if (!params.cibersortx_token) {
+            error "Please provide --cibersortx_token <token> when using --clin_trial_mode"
+        }
+    } else if (params.clinical_mode) {
+        if (!params.sample) {
+            error "Please provide --sample <sample_name> when using --clinical_mode"
+        }
+        if (!params.bam_directory) {
+            error "Please provide --bam_directory <path_to_bam_folder> when using --clinical_mode"
+        }
+        if (!params.cibersortx_username) {
+            error "Please provide --cibersortx_username <username> when using --clinical_mode"
+        }
+        if (!params.cibersortx_token) {
+            error "Please provide --cibersortx_token <token> when using --clinical_mode"
+        }
     }
 
     // Set output directory for results
@@ -116,11 +179,17 @@ workflow {
     panel_metadata_ch = Channel.fromPath(params.panel_metadata, checkIfExists: true)
     publish_dir_ch = Channel.fromPath(params.out_dir)
 
-    if (params.get_sample_report) {
+    if (params.make_target_bed) {
+        // Generate target bed file for MinKNOW adaptive sampling
+        // This process is separate from the main sample processing workflow as it is a different use case
+        generate_target_bed(panel_metadata_ch, publish_dir_ch)
+    } else if (params.clin_trial_mode) {
+        // Generate classifier input for the sample
+        get_classifier_input_sample_data(panel_metadata_ch, publish_dir_ch)
+    } else if (params.clinical_mode) {
         // Generate individual sample clinical report
         get_patient_report(panel_metadata_ch, publish_dir_ch)
     } else {
-        // Generate classifier input for the sample
-        get_classifier_input_sample_data(panel_metadata_ch, publish_dir_ch)
+        error "Please specify a mode of operation: --make_target_bed, --clin_trial_mode, or --clinical_mode."
     }
 }
