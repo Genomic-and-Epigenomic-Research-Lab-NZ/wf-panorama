@@ -40,6 +40,11 @@ process RUN_WF_HUMVAR {
     cache 'lenient'  // Cache outputs even if the process script changes (since the script is just a wrapper around a stable wf-human-variation run dir)
     storeDir "${params.out_dir}/${params.sample}/.nextflow_cache"
 
+    // ======== WARNING ========
+    // storeDir won't re-run if inputs change but outputs already exist
+    // This is a deliberate tradeoff with storeDir — it skips the process purely based on output existence, not input hashes. This process is long, therefore this is intentional. If you change --bed, --bam, etc., the cached wf-humvar directory will still be used.
+    // =========================
+
     input:
         path bam_dir
         path ref
@@ -55,7 +60,7 @@ process RUN_WF_HUMVAR {
     // humvar_run_dir is OUTSIDE the task work dir so it is stable across
     // outer pipeline retries — this is what allows -resume to work on the
     // nested wf-human-variation run.
-    def humvar_run_dir = "${file(params.out_dir).toAbsolutePath()}/${params.sample}/wf-humvar-run"
+    def humvar_run_dir = "${params.out_dir}/${params.sample}/wf-humvar-run"
     """
     set -euo pipefail
 

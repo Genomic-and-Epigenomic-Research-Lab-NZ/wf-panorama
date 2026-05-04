@@ -29,7 +29,7 @@ process convert_bedmethyl_to_DSS {
     memory { 8.GB * task.attempt }
     time '1h'
     errorStrategy { task.exitStatus in [137, 138, 139, 140, 143] ? 'retry' : 'terminate' }  // Retry on common OOM exit codes, with increasing memory on each retry
-    maxRetries 3
+    maxRetries 5
     container "file://${projectDir}/containers/general.sandbox"
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
@@ -45,8 +45,10 @@ process convert_bedmethyl_to_DSS {
 process prep_for_getting_betas {
     tag "prep_for_getting_betas.${params.sample}"
     cpus 1
-    memory '8 GB'
-    time '1h'
+    memory { 16.GB * task.attempt }
+    time { '1h' * task.attempt }
+    errorStrategy { task.exitStatus in [137, 138, 139, 140, 143] ? 'retry' : 'terminate' }  // Retry on common OOM exit codes, with increasing memory on each retry
+    maxRetries 5
     container "file://${projectDir}/containers/general.sandbox"
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
@@ -56,7 +58,7 @@ process prep_for_getting_betas {
         path "${params.sample}.pre_beta.csv", emit: pre_beta
     script:
         """
-        python3 ${projectDir}/bin/process_result_before_betas.py --epic ${epic} --dss ${dss} --out ${params.sample}.pre_beta.csv
+        python3 ${projectDir}/bin/process_result_before_betas.py --epic ${epic} --dss ${dss} --depth ${params.meth_coverage_threshold} --out ${params.sample}.pre_beta.csv
         """
 }
 
@@ -73,7 +75,7 @@ process add_betas {
         path "${params.sample}.post_beta.csv", emit: post_beta
     script:
         """
-        Rscript ${projectDir}/bin/add_betas.R ${pre} ${params.sample}.post_beta.csv
+        micromamba run -n mCS Rscript ${projectDir}/bin/add_betas.R ${pre} ${params.sample}.post_beta.csv
         """
 }
 
@@ -106,7 +108,7 @@ process run_methylCS {
     cpus 1
     memory '8 GB'
     time '1h'
-    container './containers/methylcibersort.sif'
+    container './containers/methylcibersort.sandbox'
     publishDir "${params.out_dir}/${params.sample}/methylCS", mode: 'copy'
     input:
         path beta
@@ -115,7 +117,7 @@ process run_methylCS {
         path "${params.sample}.CS_bladder_ref.txt", emit: cs_ref
     script:
         """
-        Rscript ${projectDir}/bin/methylcibersort.R ${beta} ${params.sample}.CS_mix_matrix ${params.sample}.CS_bladder_ref.txt ${params.sample}
+        micromamba run -n mCS Rscript ${projectDir}/bin/methylcibersort.R ${beta} ${params.sample}.CS_mix_matrix ${params.sample}.CS_bladder_ref.txt ${params.sample} ${params.methylcibersort_cancer_type}
         """
 }
 
@@ -241,7 +243,7 @@ workflow wf_humvar {
         )
 
     emit:
-        humvar_files = WF_HUMVAR.out
+        humvar_files = WF_HUMVAR.out.humvar_files
 }
 
 // ---------------------------------------------------------------------------
@@ -280,7 +282,9 @@ workflow sample_processing {
 
         // WF_HUMVAR emits a flat list of files from results/<project>/<sample>/wf-humvar/*
         // Collect them into a single list, then filter by filename pattern.
-        wf_humvar_files = wf_humvar.out.humvar_files.flatten().collect()
+        wf_humvar_files = wf_humvar.out.humvar_files
+            .flatMap { dir -> dir.listFiles().toList() }
+            .collect()
 
         mods1_ch = wf_humvar_files.map { files ->
             files.find { it.name =~ /\.wf_mods\.1\.bedmethyl\.gz$/ }

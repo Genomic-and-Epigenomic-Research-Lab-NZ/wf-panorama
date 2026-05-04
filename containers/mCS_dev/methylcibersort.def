@@ -1,0 +1,29 @@
+Bootstrap: docker
+From: mambaorg/micromamba:latest
+
+%files
+    mCS_venv_test.yaml /opt/mCS_venv_test.yaml
+    conda-lock.yml /opt/conda-lock.yml
+    MethylCIBERSORT_0.2.0.tar.gz /opt/MethylCIBERSORT_0.2.0.tar.gz
+
+%post
+    # apt-get update && apt-get install -y \
+    #     build-essential \
+    #     gfortran \
+    #     git \
+    #     bzip2 \
+    #     libarchive-dev
+    
+    # Initialize shell for micromamba
+    eval "$(micromamba shell-init -s bash)"
+
+    # Install into base env from lock-file
+    micromamba install --name base --yes --file /opt/conda-lock.yml
+
+    # Activate environment and install R package
+    micromamba run -n mCS R CMD INSTALL /opt/MethylCIBERSORT_0.2.0.tar.gz
+
+    micromamba clean --all --yes
+    
+%runscript
+    exec "$@"
