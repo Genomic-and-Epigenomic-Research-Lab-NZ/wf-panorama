@@ -130,7 +130,6 @@ The workflow can then be run with the downloaded demo data using: -->
 <!-- TODO: update figshare.com link to actual url -->
 
 <!-- BEGIN:external_downloads -->
-
 ### Containers
 The container components of this tool are very large. These are hosted on [figshare.com](figshare.com)
 You will need to download these containers separately in order to use this tool.  
