@@ -9,7 +9,7 @@ process combine_bedmethyls {
     cpus 2
     memory '8 GB'
     time '1h'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path b1
@@ -30,7 +30,7 @@ process convert_bedmethyl_to_DSS {
     time '1h'
     errorStrategy { task.exitStatus in [137, 138, 139, 140, 143] ? 'retry' : 'terminate' }  // Retry on common OOM exit codes, with increasing memory on each retry
     maxRetries 5
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path bed
@@ -49,7 +49,7 @@ process prep_for_getting_betas {
     time { '1h' * task.attempt }
     errorStrategy { task.exitStatus in [137, 138, 139, 140, 143] ? 'retry' : 'terminate' }  // Retry on common OOM exit codes, with increasing memory on each retry
     maxRetries 5
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path epic
@@ -67,7 +67,7 @@ process add_betas {
     cpus 1
     memory '16 GB'
     time '2h'
-    container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sandbox"
+    container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sif"
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path pre
@@ -84,7 +84,7 @@ process modification_calling {
     cpus 2
     memory '16 GB'
     time '4h'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path panel_meta
@@ -108,16 +108,21 @@ process run_methylCS {
     cpus 1
     memory '8 GB'
     time '1h'
-    container './containers/methylcibersort.sandbox'
+    container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sif"
     publishDir "${params.out_dir}/${params.sample}/methylCS", mode: 'copy'
+    
     input:
         path beta
+        val cancer_type
+        val sample_name
+    
     output:
         path "${params.sample}.CS_mix_matrix.txt", emit: cs_mix
-        path "${params.sample}.CS_bladder_ref.txt", emit: cs_ref
+        path "${params.sample}.${cancer_type}.mCS_ref.txt", emit: cs_ref
+    
     script:
         """
-        micromamba run -n mCS Rscript ${projectDir}/bin/methylcibersort.R ${beta} ${params.sample}.CS_mix_matrix ${params.sample}.CS_bladder_ref.txt ${params.sample} ${params.methylcibersort_cancer_type}
+        micromamba run -n mCS Rscript ${projectDir}/bin/methylcibersort.R ${beta} ${sample_name}.CS_mix_matrix ${params.sample}.${cancer_type}.mCS_ref.txt ${sample_name} ${cancer_type}
         """
 }
 
@@ -127,7 +132,7 @@ process run_CIBERSORTX {
     memory '8 GB'
     time '2h'
     container 'docker://cibersortx/fractions'
-    publishDir "${params.out_dir}/${params.sample}/methylCS", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/methylCS", mode: 'copy', saveAs: { f -> file(f).name }
     input:
         path mixture
         path sigmatrix
@@ -135,7 +140,7 @@ process run_CIBERSORTX {
         val token
         val sample_name
     output:
-        path "outdir/*", emit: cibersortx_out
+        path "outdir/CIBERSORTx_${params.sample}_Results.csv", emit: cibersortx_out
     script:
         """
         cibersortx_fractions \
@@ -155,7 +160,7 @@ process snv_annotation {
     cpus 2
     memory '8 GB'
     time '2h'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}/snv_annotation", mode: 'copy'
     input:
         path panel_meta
@@ -181,7 +186,7 @@ process sv_annotation {
     cpus 2
     memory '8 GB'
     time '2h'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}/sv_annotation", mode: 'copy'
     input:
         path panel_meta
@@ -203,7 +208,7 @@ process immune_infiltrate_mCS {
     cpus 1
     memory '8 GB'
     time '1h'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}/immune_infiltrate", mode: 'copy'
     input:
         path panel_meta
@@ -220,33 +225,6 @@ process immune_infiltrate_mCS {
 }
 
 // ---------------------------------------------------------------------------
-// Sub-workflows
-// ---------------------------------------------------------------------------
-
-workflow wf_humvar {
-    take:
-        bam_dir_ch
-        ref_ch
-        targets_ch
-        tr_ch
-        sample_name_ch
-        project_name_ch
-
-    main:
-        WF_HUMVAR(
-            bam_dir_ch,
-            ref_ch,
-            targets_ch,
-            tr_ch,
-            sample_name_ch,
-            project_name_ch
-        )
-
-    emit:
-        humvar_files = WF_HUMVAR.out.humvar_files
-}
-
-// ---------------------------------------------------------------------------
 // Main sample_processing workflow
 // ---------------------------------------------------------------------------
 
@@ -255,34 +233,45 @@ workflow sample_processing {
         panel_metadata_ch
 
     main:
-        def SAMPLE  = params.sample
-        def PROJECT = params.project_name
+        def SAMPLE = params.sample
 
         if (!SAMPLE) {
             error 'params.sample must be set to run sample_processing'
         }
 
-        // Input paths
-        def bam_pass_dir     = file(params.bam_directory)
-        def reference        = file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
-        def targets_bed      = file(params.target_bedfile)
-        // def tandem_repeat_bed = file("${projectDir}/resources/hg38.trf.bed.gz")
-        def tandem_repeat_bed = file("${projectDir}/resources/hg38.trf.bed")
-        def epic_file        = file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
+        // Input channels — use Channel.fromPath for files, Channel.of for scalar values
+        bam_dir_ch       = Channel.fromPath(params.bam_directory, type: 'dir', checkIfExists: true)
+        // ref_ch           = Channel.fromPath("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna", checkIfExists: true)
+        targets_ch       = Channel.fromPath(params.target_bedfile, checkIfExists: true)
+        // tr_ch            = Channel.fromPath("${projectDir}/resources/hg38.trf.bed", checkIfExists: true)
+        // epic_ch          = Channel.fromPath("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv", checkIfExists: true)
+        sample_name_ch   = Channel.of(SAMPLE)
+        project_name_ch  = Channel.of(params.project_name)
 
-        Channel.of(bam_pass_dir).set       { bam_dir_ch }
-        Channel.of(reference).set          { ref_ch }
-        Channel.of(targets_bed).set        { targets_ch }
-        Channel.of(tandem_repeat_bed).set  { tr_ch }
-        Channel.of(SAMPLE).set             { sample_name_ch }
-        Channel.of(PROJECT).set            { project_name_ch }
+        def ref_fasta = params.reference_genome 
+                        ? file(params.reference_genome) 
+                        : file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
+        
+        def epic_locs = params.Illumina_epic_locs 
+                                ? file(params.Illumina_epic_locs) 
+                                : file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
 
-        // 1. Call wf_humvar sub-workflow
-        wf_humvar(bam_dir_ch, ref_ch, targets_ch, tr_ch, sample_name_ch, project_name_ch)
+        def ref_trf = params.wf_humvar_trf_file 
+                        ? file(params.wf_humvar_trf_file) 
+                        : file("${projectDir}/resources/hg38.trf.bed")
+
+        ref_ch          = Channel.fromPath(ref_fasta.toString(), checkIfExists: true)
+        epic_locs_ch    = Channel.fromPath(epic_locs.toString(), checkIfExists: true)
+        tr_ch           = Channel.fromPath(ref_trf.toString(), checkIfExists: true)
+        // epic_ch is used by prep_for_getting_betas below
+
+
+        // 1. Call WF_HUMVAR directly (no passthrough wrapper needed)
+        WF_HUMVAR(bam_dir_ch, ref_ch, targets_ch, tr_ch, sample_name_ch, project_name_ch)
 
         // WF_HUMVAR emits a flat list of files from results/<project>/<sample>/wf-humvar/*
         // Collect them into a single list, then filter by filename pattern.
-        wf_humvar_files = wf_humvar.out.humvar_files
+        wf_humvar_files = WF_HUMVAR.out.humvar_files
             .flatMap { dir -> dir.listFiles().toList() }
             .collect()
 
@@ -308,30 +297,40 @@ workflow sample_processing {
         // 2. Methylation pipeline
         combine_bedmethyls(mods1_ch, mods2_ch, mods_ungrouped_ch)
         convert_bedmethyl_to_DSS(combine_bedmethyls.out.combined_bed)
-        prep_for_getting_betas(Channel.of(epic_file), convert_bedmethyl_to_DSS.out.dss)
+        prep_for_getting_betas(epic_locs_ch, convert_bedmethyl_to_DSS.out.dss)
         add_betas(prep_for_getting_betas.out.pre_beta)
         modification_calling(panel_metadata_ch, add_betas.out.post_beta)
-        run_methylCS(modification_calling.out.methatlas)
+        run_methylCS(modification_calling.out.methatlas, Channel.of(params.mCS_cancer_type), sample_name_ch)
 
         // 3. CIBERSORTx deconvolution
-        run_CIBERSORTX(
-            run_methylCS.out.cs_mix,
-            run_methylCS.out.cs_ref,
-            params.cibersortx_username,
-            params.cibersortx_token,
-            SAMPLE
-        )
+        // TODO: remove the skipping if statements and just keep the run block and channel creation 
+        if (params.skip_cibersortx) {
+            // Use a pre-existing results file from the output directory (e.g. when token is expired)
+            cibersortx_out_ch = Channel.fromPath(
+                "${params.out_dir}/${params.sample}/methylCS/CIBERSORTx_${params.sample}_Results.csv",
+                checkIfExists: true
+            )
+        } else {
+            run_CIBERSORTX(
+                run_methylCS.out.cs_mix,
+                run_methylCS.out.cs_ref,
+                Channel.of(params.cibersortx_username),
+                Channel.of(params.cibersortx_token),
+                sample_name_ch
+            )
+            cibersortx_out_ch = run_CIBERSORTX.out.cibersortx_out
+        }
 
         // 4. SNV / SV annotation
         snv_annotation(panel_metadata_ch, vcf_clin_ch, vcf_clin_tbi_ch, vcf_all_ch)
         sv_annotation(panel_metadata_ch, vcf_all_ch)
 
         // 5. Immune infiltrate
-        immune_infiltrate_mCS(panel_metadata_ch, run_CIBERSORTX.out.cibersortx_out)
+        immune_infiltrate_mCS(panel_metadata_ch, cibersortx_out_ch)
 
     emit:
         snv_panel    = snv_annotation.out.snv_panel
-        // sv_panel     = sv_annotation.out.sv_panel
+        // sv_panel     = sv_annotation.out.sv_panel  # TODO: Turned off for now until we get some SV data we can investigate
         sv_panel     = sv_annotation.out.sv_raw
         mod_results  = modification_calling.out.mod_results
         immune       = immune_infiltrate_mCS.out.immune

@@ -7,7 +7,7 @@
 ## 👇 Contents
 
 - [Panorama](#panorama)
-  - [👇Contents](#contents)
+  - [👇 Contents](#-contents)
   - [🧬 Introduction](#-introduction)
     - [Panorama is intended for use as follows:](#panorama-is-intended-for-use-as-follows)
       - [Stage One: In a Pre-Clinical Trial for a defined disease and single\* treatment option 📋](#stage-one-in-a-pre-clinical-trial-for-a-defined-disease-and-single-treatment-option-)
@@ -15,8 +15,14 @@
   - [🖥️ Compute requirements](#️-compute-requirements)
   - [🥳 Third-party requirements](#-third-party-requirements)
   - [🏁 Install and run](#-install-and-run)
+    - [Additional install requirements](#additional-install-requirements)
+    - [Containers](#containers)
+    - [Human Genome Reference](#human-genome-reference)
+    - [Chromosome size file](#chromosome-size-file)
+    - [Run command](#run-command)
   - [🎈 Usage](#-usage)
     - [General Input Parameters](#general-input-parameters)
+      - [Tissue type options](#tissue-type-options)
     - [General Output Parameters](#general-output-parameters)
     - [Mode `make_target_bed`](#mode-make_target_bed)
       - [Input](#input)
@@ -119,6 +125,57 @@ tar -xzvf wf-template-demo.tar.gz
 ```
 The workflow can then be run with the downloaded demo data using: -->
 
+### Additional install requirements
+<!-- TODO: Set up Github Actions to get this to work properly -->
+<!-- TODO: update figshare.com link to actual url -->
+
+<!-- BEGIN:external_downloads -->
+
+### Containers
+The container components of this tool are very large. These are hosted on [figshare.com](figshare.com)
+You will need to download these containers separately in order to use this tool.  
+On the plus side, you shouldn't need to download or set up any other packages!
+
+Containers:  
+- general.sif ( GB)
+- methylcibersort.sif ( GB)
+Place these in the directory: `wf-panorama/containers/`  
+
+### Human Genome Reference
+You will need to obtain your preferred human genome and associated index file and put it in the `wf-panorama/resources/` directory.  
+During development the genome build `GCA_000001405.15_GRCh38_no_alt_analysis_set.fna` was used. Any genome build of hg38 should work, though other builds have not been tested.  
+
+> [!TIP]
+> You should be able to use a symlink (aka symbolic link, alias, shortcut) to avoid having multiple copies of the human genome scattered around your system. To add a symlink:  
+> ```
+> ln -s /path/to/<genome.fna> /path/to/wf-panorama/resources/.
+> ln -s /path/to/<genome.fna.fai> /path/to/wf-panorama/resources/.
+> ```
+> Please note symlinks haven't been tested in this workflow yet. If there are mysterious errors try copying the genome to this location instead. Please let us know if you use symlinking wth the workflow and it works!
+
+> [!WARNING] 
+> Methylation sites have been identified by their Illumina array probe names, and mapped to hg38 genome locations. Unless you rebuild all the files in this workflow that use genome locations, using the T2T genome build will NOT work and/or will give wrong results!
+
+To generate the genome index file using samtools (recommended):  
+```sh
+cd wf-panorama/resources
+ref="GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"  # or your reference file
+samtools faidx ${ref}
+# this creates a file called "GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai"
+```
+The index file is required to be pre-built.  
+
+### Chromosome size file
+A chrom_sizes file is also required. While there is one included in the resources directory, it should be replaced by a fresh file created from the above index file like so:  
+```sh
+fai="/path/to/<genome.fna.fai>"
+cd wf-panorama/resources
+cut -f1,2 ${fai} > hg38_no_alt.chrom_sizes
+```
+<!-- END:external_downloads -->
+
+### Run command
+
 The workflow can be run using:
 <!-- TODO: fix profile options (epi2me uses "standard") -->
 ```
@@ -128,7 +185,7 @@ nextflow run lucy924/wf-panorama \
     --bam_directory /path/to/passed_bams \
     --panel_metadata /path/to/demo_input/panel_metadata.csv \
     --target_bedfile /path/to/demo_input/targets.bed \
-    --methylcibersort_cancer_type bladder \
+    --mCS_cancer_type bladder \
     --cibersortx_username <email> \
     --cibersortx_token <token> \
     -profile slurm,singularity \
@@ -172,6 +229,51 @@ There are three modes of operation, selected by the following flags:
 | clinical_mode | boolean | Generate an individual patient sample report using a trained classifier. | Requires a completed clinical trial and classifier results in the panel metadata. | False |
 | project_name | string | A project name that will be used for containing all the samples processed during the clinical trial. If using in clinical mode, this will be used for containing all samples processed using the same classifier. | This structure is necessary in order for the biomarker metadata to be processed appropriately. | (Required input for all modes) |
 | panel_metadata | string | The path to `<panel_metadata>.csv` | See section [Biomarker panel input](#biomarker-panel-input) for details | (Required input for all modes) |
+| mCS_cancer_type | string | The cancer/tissue type of the project. | Required. See [Tissue type options](#tissue-type-options). | `bladder` |  
+
+#### Tissue type options
+The MethylCIBERSORT process has a specific set of genomic locations it uses to generate reference data for deconvolution. Pick the most appropriate one for your project, and input exactly as below into `--mCS_cancer_type`.  
+
+    "acute_myeloid_leukaemia"
+    "B_cell_leukemia"
+    "B_cell_lymphoma"
+    "biliary_tract"
+    "bladder"
+    "breast"
+    "Burkitt_lymphoma"
+    "chronic_myeloid_leukaemia"
+    "endometrium"
+    "Glioma"
+    "haematopoietic_neoplasm.other"
+    "head_and_neck"
+    "Hodgkin_lymphoma"
+    "kidney"
+    "large_intestine"
+    "liver"
+    "lung_NSCLC_adenocarcinoma"
+    "lung_NSCLC_large_cell"
+    "lung_NSCLC_not_specified"
+    "lung_NSCLC_squamous_cell_carcinoma"
+    "lung_small_cell_carcinoma"
+    "lymphoblastic_leukemia"
+    "lymphoblastic_T_cell_leukaemia"
+    "lymphoid_neoplasm_other"
+    "melanoma"
+    "mesothelioma"
+    "MethylCIBERSORT_KoestlerRuns"
+    "Myeloma"
+    "neuroblastoma"
+    "not_specified"
+    "oesophagus"
+    "ovary"
+    "pancreas"
+    "prostate"
+    "sarcoma"
+    "soft_tissue_other"
+    "stomach"
+    "T_cell_leukemia"
+    "thyroid"
+
 
 ### General Output Parameters
 | Nextflow parameter name  | Type | Description | Help | Default |
@@ -180,10 +282,13 @@ There are three modes of operation, selected by the following flags:
 
 ### Mode `make_target_bed`
 This mode has two outputs, for use in MinKNOW adaptive sampling. You must use this mode to generate your adaptive sampling bed file, as it combines your specific targets with regions identified for immune deconvolution by methylation. If your bed file does not contain these regions then the tool will not be able to perform immune deconvolution.  
-This mode may need to be rerun in order to create an optimal bed file that covers all regions adequately while also covering a suitable percentage of the genome. It will check if the resulting bed file meets all the requirements by using the `min_genome_coverage`, `max_genome_coverage` and `buffersize_bp` parameters. If the initial check fails, (it will tell you on the terminal) and/or you want different thresholds for these parameters, adjust them as desired and re-run until you get a successful message.
+This mode may need to be rerun multiple times in order to create an optimal bed file that covers all regions adequately while also covering a suitable percentage of the genome. It will check if the resulting bed file meets all the requirements by using the `min_genome_coverage`, `max_genome_coverage` and `buffersize_bp` parameters. If the initial check fails, (it will tell you on the terminal) and/or you want different thresholds for these parameters, adjust them as desired and re-run until you get a successful message.  
+Please note that MethylCIBERSORT reference data it uses to build the bed file is based on hg38 genome coordinates.  
 
 #### Input 
-There are no extra inputs required here.  
+| Nextflow parameter name  | Type | Description | Help | Default |
+|--------------------------|------|-------------|------|---------|
+| chrom_sizes_file | string | The path to a chrom_sizes file, generated from the index of the reference genome. | Optional. If not provided, the bundled `resources/hg38_no_alt.chrom_sizes` file is used. It is strongly recommended to generate this from the same reference genome you are using for sequencing — see [Chromosome size file](#chromosome-size-file). | `resources/hg38_no_alt.chrom_sizes` (bundled) |  
 
 *Example run command*  
 <!-- TODO: update!!! -->
@@ -192,16 +297,20 @@ nextflow run ../wf-panorama \
     --make_target_bed \
     --project_name 20260418-BCG_on_NMIBC \
     --panel_metadata ../wf-panorama/demo_input/panel_metadata.csv \
+    --mCS_cancer_type bladder \
     -profile slurm,singularity \
     -resume
 ```
+
+Expected runtime: < 5 min  
 
 #### Output
 
 | Title | File path | Description | 
 |-------|-----------|-------------| 
-| Targets with buffered regions | ./minknow_input/<project_name>.targets_buffed.bed | bed file for adaptive sampling |
-| Targets for alignment stats | ./minknow_input/<project_name>.targets_for_align.bed | A bed file provided for optional alignment of your target regions only. This file does NOT have buffered regions, do not use it in the adaptive sampling input. You may use it in the alignment only section, and it can help monitor read depth in your desired regions. If you are not confident with this do NOT use it. |
+| Targets with buffered regions | `minknow_input/<project_name>.targets_buffed.bed` | bed file for adaptive sampling |
+| Targets for alignment stats | `minknow_input/<project_name>.targets_for_align.bed` | A bed file provided for optional alignment of your target regions during sequencing. This file does NOT have buffered regions, do not use it in the adaptive sampling input. You may use it in the alignment only section, and it can help monitor read depth in your desired regions. If you are not confident with this do NOT use it. This file is also used for analysis during sample processing. |
+
 
 ### Mode `clin_trial_mode`
 
@@ -212,12 +321,27 @@ nextflow run ../wf-panorama \
 | bam_directory | string | The path to a single directory containing bams to process. | Usually the `bam_pass` directory in MinKNOW- or Dorado-processed data. Required for `--clin_trial_mode` and `--clinical_mode`. | null |
 | cibersortx_username | string | CIBERSORTx account username (email). | Required to authenticate with the CIBERSORTx service. Required for `--clin_trial_mode` and `--clinical_mode`. | null |
 | cibersortx_token | string | CIBERSORTx authentication token. | Obtain from the CIBERSORTx Downloads page. Required for `--clin_trial_mode` and `--clinical_mode`. | null |
-| methylcibersort_cancer_type | string | Cancer type signature to use for MethylCIBERSORT deconvolution. | Must match one of the available signature sets bundled with MethylCIBERSORT. See `nextflow_schema.json` for valid options. Required for `--clin_trial_mode` and `--clinical_mode`. | bladder |
+| mCS_cancer_type | string | Cancer type signature to use for MethylCIBERSORT deconvolution. | Must match one of the available signature sets bundled with MethylCIBERSORT. See `nextflow_schema.json` for valid options. Required for `--clin_trial_mode` and `--clinical_mode`. | bladder |
 | target_bedfile | string | Path to a bed file of target regions to use in the analysis. | Defaults to the bed file generated by `--make_target_bed`. Can be overridden to point to an existing file. | `<out_dir>/minknow_input/<project_name>.targets_for_align.bed` |
-| meth_coverage_threshold | integer | Minimum coverage threshold for a CpG site to be included in methylation analysis and immune infiltrate deconvolution. | The default of 30 is conservatively high for confident results. For development and testing, a lower value (e.g. 20) can be used to include more sites. | 30 |
+| meth_coverage_threshold | integer | Minimum coverage (depth) threshold for a CpG site to be included in methylation analysis and immune infiltrate deconvolution. | The default of 30 is conservatively high for confident results. For development and testing, a lower value (e.g. 20) can be used to include more sites. | 30 |
 <!-- | watch_path | boolean | Enable to continuously watch the input directory for new input files. | This option enables the use of Nextflow's directory watching feature to constantly monitor input directories for new files. | False | -->
 <!-- | sample_sheet | string | A CSV file used to map barcodes to sample aliases. The sample sheet can be provided when the input data is a folder containing sub-folders with FASTQ files. | The sample sheet is a CSV file with, minimally, columns named `barcode` and `alias`. Extra columns are allowed. A `type` column is required for certain workflows and should have the following values; `test_sample`, `positive_control`, `negative_control`, `no_template_control`. An optional `analysis_group` column is used by some workflows to combine the results of multiple samples. If the `analysis_group` column is present, it needs to contain a value for each sample. |  | -->
 
+*Example run command*  
+<!-- TODO: update!!! -->
+```sh
+nextflow run ../wf-panorama \
+    --clin_trial_mode \
+    --project_name 20260418-BCG_on_NMIBC \
+    --sample Test1 \
+    --bam_directory /path/to/bam_pass/ \
+    --panel_metadata ../wf-panorama/demo_input/panel_metadata.csv \
+    --meth_coverage_threshold 5 \
+    --cibersortx_username person@place.com \
+    --cibersortx_token 12a3bc  \
+    -profile slurm,singularity \
+    -resume
+```
 
 #### Output
 This mode generates a lot of files. Raw results for each SNV, Methylation and immune infiltrate files can be found in their respective sections. These are collated into one clinical pdf report.
@@ -234,10 +358,26 @@ This mode generates a lot of files. Raw results for each SNV, Methylation and im
 | bam_directory | string | The path to a single directory containing bams to process. | Usually the `bam_pass` directory in MinKNOW- or Dorado-processed data. Required for `--clin_trial_mode` and `--clinical_mode`. | null |
 | cibersortx_username | string | CIBERSORTx account username (email). | Required to authenticate with the CIBERSORTx service. Required for `--clin_trial_mode` and `--clinical_mode`. | null |
 | cibersortx_token | string | CIBERSORTx authentication token. | Obtain from the CIBERSORTx Downloads page. Required for `--clin_trial_mode` and `--clinical_mode`. | null |
-| methylcibersort_cancer_type | string | Cancer type signature to use for MethylCIBERSORT deconvolution. | Must match one of the available signature sets bundled with MethylCIBERSORT. See `nextflow_schema.json` for valid options. Required for `--clin_trial_mode` and `--clinical_mode`. | bladder |
+| mCS_cancer_type | string | Cancer type signature to use for MethylCIBERSORT deconvolution. | Must match one of the available signature sets bundled with MethylCIBERSORT. See `nextflow_schema.json` for valid options. Required for `--clin_trial_mode` and `--clinical_mode`. | bladder |
 | target_bedfile | string | Path to a bed file of target regions to use in the analysis. | Defaults to the bed file generated by `--make_target_bed`. Can be overridden to point to an existing file. | `<out_dir>/minknow_input/<project_name>.targets_for_align.bed` |
-| meth_coverage_threshold | integer | Minimum coverage threshold for a CpG site to be included in methylation analysis and immune infiltrate deconvolution. | The default of 30 is conservatively high for confident results. For development and testing, a lower value (e.g. 20) can be used to include more sites. | 30 |
+| meth_coverage_threshold | integer | Minimum coverage (depth) threshold for a CpG site to be included in methylation analysis and immune infiltrate deconvolution. | The default of 30 is conservatively high for confident results. For development and testing, a lower value (e.g. 20) can be used to include more sites. | 30 |
 <!-- | watch_path | boolean | Enable to continuously watch the input directory for new input files. | This option enables the use of Nextflow's directory watching feature to constantly monitor input directories for new files. | False | -->
+
+*Example run command*  
+<!-- TODO: update!!! -->
+```sh
+nextflow run ../wf-panorama \
+    --clinical_mode \
+    --project_name 20260418-BCG_on_NMIBC \
+    --sample Test1 \
+    --bam_directory /path/to/bam_pass/ \
+    --panel_metadata ../wf-panorama/demo_input/panel_metadata.csv \
+    --meth_coverage_threshold 5 \
+    --cibersortx_username person@place.com \
+    --cibersortx_token 12a3bc  \
+    -profile slurm,singularity \
+    -resume
+```
 
 #### Output
 This mode generates a lot of files. Raw results for each SNV, Methylation and immune infiltrate files can be found in their respective sections. These are collated into one csv that can be used as input to a machine learning classifier.
@@ -335,6 +475,7 @@ This protocol currently uses [epi2me-labs/wf-human-variation v2.6.0](https://git
 ## 🗺️ Roadmap
 - [ ]  Add multiple treatment options
 - [ ]  Integrate with Epi2ME Labs
+- [ ]  Add option for custom immune infiltrate references
 
 ## 📜 Pipeline History
 

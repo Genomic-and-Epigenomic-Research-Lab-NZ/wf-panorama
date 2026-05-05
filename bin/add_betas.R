@@ -69,12 +69,15 @@ mset <- MethylSet(Meth = Meth, Unmeth = Unmeth)
 beta_values <- getBeta(mset)
 
 # add beta column to dataframe
-# Preserve original ordering
-if (!is.null(probe_col)) {
-    df$beta <- as.numeric(beta_values[as.character(df[[probe_col]]), 1])
-} else {
-    df$beta <- as.numeric(beta_values[,1])
-}
+df$beta <- beta_values
+
+# bullshit code that breaks shit
+# # Preserve original ordering
+# if (!is.null(probe_col)) {
+#     df$beta <- as.numeric(beta_values[as.character(df[[probe_col]]), 1])
+# } else {
+#     df$beta <- as.numeric(beta_values[,1])
+# }
 
 # drop helper column
 df$unmeth <- NULL

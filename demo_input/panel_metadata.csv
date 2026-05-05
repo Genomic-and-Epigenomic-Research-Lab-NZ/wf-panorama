@@ -65,7 +65,7 @@
 066,GLI3,snv,Panel,No,No,rs3801192,G|G/G|A/A|A,,,,genotypic,,,,chr7,"42,121,928","42,121,928",1,-,
 401,LMR,immune_ratio,Panel,,,,0.0-10.0,,,,continuous,,,,,,,,,
 402,NLR,immune_ratio,Panel,,,,0.0-10.0,,,,continuous,,,,,,,,,
-403,monocyte_inf,immune_inf,Panel,,,,0.0-1.0,,,,continuous,,,,,,,,,
+403,Monocyte_inf,immune_inf,Panel,,,,0.0-1.0,,,,continuous,,,,,,,,,
 405,Bcell_inf,immune_inf,Panel,,,,0.0-1.0,,,,continuous,,,,,,,,,
 406,CD4_inf,immune_inf,Panel,,,,0.0-1.0,,,,continuous,,,,,,,,,
 407,NK_inf,immune_inf,Panel,,,,0.0-1.0,,,,continuous,,,,,,,,,

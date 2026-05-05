@@ -141,34 +141,19 @@ workflow {
     }
 
     // Validate mode-specific required params
+    def validateSampleProcessingParams = { mode ->
+        if (!params.sample)             error "Please provide --sample <sample_name> when using --${mode}"
+        if (!params.bam_directory)      error "Please provide --bam_directory <path_to_bam_folder> when using --${mode}"
+        if (!params.cibersortx_username) error "Please provide --cibersortx_username <username> when using --${mode}"
+        if (!params.cibersortx_token)   error "Please provide --cibersortx_token <token> when using --${mode}"
+    }
+
     if (params.make_target_bed) {
         // No additional required params for target bed generation
     } else if (params.clin_trial_mode) {
-        if (!params.sample) {
-            error "Please provide --sample <sample_name> when using --clin_trial_mode"
-        }
-        if (!params.bam_directory) {
-            error "Please provide --bam_directory <path_to_bam_folder> when using --clin_trial_mode"
-        }
-        if (!params.cibersortx_username) {
-            error "Please provide --cibersortx_username <username> when using --clin_trial_mode"
-        }
-        if (!params.cibersortx_token) {
-            error "Please provide --cibersortx_token <token> when using --clin_trial_mode"
-        }
+        validateSampleProcessingParams('clin_trial_mode')
     } else if (params.clinical_mode) {
-        if (!params.sample) {
-            error "Please provide --sample <sample_name> when using --clinical_mode"
-        }
-        if (!params.bam_directory) {
-            error "Please provide --bam_directory <path_to_bam_folder> when using --clinical_mode"
-        }
-        if (!params.cibersortx_username) {
-            error "Please provide --cibersortx_username <username> when using --clinical_mode"
-        }
-        if (!params.cibersortx_token) {
-            error "Please provide --cibersortx_token <token> when using --clinical_mode"
-        }
+        validateSampleProcessingParams('clinical_mode')
     }
 
     // Set output directory for results

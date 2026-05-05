@@ -7,6 +7,65 @@
     "url": "https://github.com/lucy924/wf-panorama",
     "type": "object",
     "definitions": {
+        "sample_processing_options": {
+            "title": "Sample Processing Required Options",
+            "description": "Parameters required for both clin_trial_mode and clinical_mode.",
+            "type": "object",
+            "allOf": [
+                {
+                    "required": ["sample"],
+                    "properties": {
+                        "sample": {
+                            "type": "string",
+                            "description": "A single sample name.",
+                            "help_text": "This is used to specify a single sample name of your choosing."
+                        }
+                    }
+                },
+                {
+                    "required": ["bam_directory"],
+                    "properties": {
+                        "bam_directory": {
+                            "type": "string",
+                            "format": "path",
+                            "description": "BAM files to use in the analysis.",
+                            "help_text": "This accepts the path to a folder containing BAM files."
+                        }
+                    }
+                },
+                {
+                    "required": ["cibersortx_username"],
+                    "properties": {
+                        "cibersortx_username": {
+                            "type": "string",
+                            "description": "CIBERSORTx account username.",
+                            "help_text": "Required to authenticate with the CIBERSORTx service."
+                        }
+                    }
+                },
+                {
+                    "required": ["cibersortx_token"],
+                    "properties": {
+                        "cibersortx_token": {
+                            "type": "string",
+                            "description": "CIBERSORTx authentication token.",
+                            "help_text": "Required to authenticate with the CIBERSORTx service."
+                        }
+                    }
+                },
+                {
+                    "required": ["meth_coverage_threshold"],
+                    "properties": {
+                        "meth_coverage_threshold": {
+                            "type": "integer",
+                            "default": 30,
+                            "description": "Minimum coverage threshold for a CpG site to be used in all methylation analysis, including immune infiltrate deconvolution.",
+                            "help_text": "The default of 30 is conservatively high for results to be interpreted with confidence. For development and testing we recommend setting it lower in order to use more sites (20 should be fine for most purposes)."
+                        }
+                    }
+                }
+            ]
+        },
         "input": {
             "title": "Input Options",
             "type": "object",
@@ -47,6 +106,54 @@
                     "description": "Path to the input panel metadata CSV file. This is required.",
                     "help_text": "Path to a CSV file containing panel metadata for the sample."
                 },
+                "mCS_cancer_type": {
+                    "type": "string",
+                    "default": "bladder",
+                    "title": "MethylCIBERSORT cancer type",
+                    "description": "Cancer type signature to use for MethylCIBERSORT deconvolution.",
+                    "help_text": "Select the cancer-type reference signature used by MethylCIBERSORT. Must match one of the available signature sets bundled with the MethylCIBERSORT R package (V2_Signatures). Available options: acute_myeloid_leukaemia, B_cell_leukemia, B_cell_lymphoma, biliary_tract, bladder, breast, Burkitt_lymphoma, chronic_myeloid_leukaemia, endometrium, Glioma, haematopoietic_neoplasm.other, head_and_neck, Hodgkin_lymphoma, kidney, large_intestine, liver, lung_NSCLC_adenocarcinoma, lung_NSCLC_large_cell, lung_NSCLC_not_specified, lung_NSCLC_squamous_cell_carcinoma, lung_small_cell_carcinoma, lymphoblastic_leukemia, lymphoblastic_T_cell_leukaemia, lymphoid_neoplasm_other, melanoma, mesothelioma, MethylCIBERSORT_KoestlerRuns, Myeloma, neuroblastoma, not_specified, oesophagus, ovary, pancreas, prostate, sarcoma, soft_tissue_other, stomach, T_cell_leukemia, thyroid.",
+                    "enum": [
+                        "acute_myeloid_leukaemia",
+                        "B_cell_leukemia",
+                        "B_cell_lymphoma",
+                        "biliary_tract",
+                        "bladder",
+                        "breast",
+                        "Burkitt_lymphoma",
+                        "chronic_myeloid_leukaemia",
+                        "endometrium",
+                        "Glioma",
+                        "haematopoietic_neoplasm.other",
+                        "head_and_neck",
+                        "Hodgkin_lymphoma",
+                        "kidney",
+                        "large_intestine",
+                        "liver",
+                        "lung_NSCLC_adenocarcinoma",
+                        "lung_NSCLC_large_cell",
+                        "lung_NSCLC_not_specified",
+                        "lung_NSCLC_squamous_cell_carcinoma",
+                        "lung_small_cell_carcinoma",
+                        "lymphoblastic_leukemia",
+                        "lymphoblastic_T_cell_leukaemia",
+                        "lymphoid_neoplasm_other",
+                        "melanoma",
+                        "mesothelioma",
+                        "MethylCIBERSORT_KoestlerRuns",
+                        "Myeloma",
+                        "neuroblastoma",
+                        "not_specified",
+                        "oesophagus",
+                        "ovary",
+                        "pancreas",
+                        "prostate",
+                        "sarcoma",
+                        "soft_tissue_other",
+                        "stomach",
+                        "T_cell_leukemia",
+                        "thyroid"
+                    ]
+                },
                 "client_fields": {
                     "type": "string",
                     "format": "file-path",
@@ -59,7 +166,8 @@
                 {
                     "required": [
                         "project_name",
-                        "panel_metadata"
+                        "panel_metadata",
+                        "mCS_cancer_type"
                     ]
                 },
                 {
@@ -72,7 +180,10 @@
                                 "make_target_bed": {
                                     "const": true
                                 }
-                            }
+                            },
+                            "allOf": [
+                                { "$ref": "#/definitions/target_bed_options" }
+                            ]
                         },
                         {
                             "required": [
@@ -84,55 +195,7 @@
                                 }
                             },
                             "allOf": [
-                                {
-                                    "required": [
-                                        "sample"
-                                    ],
-                                    "properties": {
-                                        "sample": {
-                                            "type": "string",
-                                            "description": "A single sample name.",
-                                            "help_text": "This is used to specify a single sample name of your choosing."
-                                        }
-                                    }
-                                },
-                                {
-                                    "required": [
-                                        "bam_directory"
-                                    ],
-                                    "properties": {
-                                        "bam_directory": {
-                                            "type": "string",
-                                            "format": "path",
-                                            "description": "BAM files to use in the analysis.",
-                                            "help_text": "This accepts the path to a folder containing BAM files."
-                                        }
-                                    }
-                                },
-                                {
-                                    "required": [
-                                        "cibersortx_username"
-                                    ],
-                                    "properties": {
-                                        "cibersortx_username": {
-                                            "type": "string",
-                                            "description": "CIBERSORTx account username.",
-                                            "help_text": "Required to authenticate with the CIBERSORTx service."
-                                        }
-                                    }
-                                },
-                                {
-                                    "required": [
-                                        "cibersortx_token"
-                                    ],
-                                    "properties": {
-                                        "cibersortx_token": {
-                                            "type": "string",
-                                            "description": "CIBERSORTx authentication token.",
-                                            "help_text": "Required to authenticate with the CIBERSORTx service."
-                                        }
-                                    }
-                                }
+                                { "$ref": "#/definitions/sample_processing_options" }
                             ]
                         },
                         {
@@ -145,80 +208,12 @@
                                 }
                             },
                             "allOf": [
-                                {
-                                    "required": [
-                                        "sample"
-                                    ],
-                                    "properties": {
-                                        "sample": {
-                                            "type": "string",
-                                            "description": "A single sample name.",
-                                            "help_text": "This is used to specify a single sample name of your choosing."
-                                        }
-                                    }
-                                },
-                                {
-                                    "required": [
-                                        "bam_directory"
-                                    ],
-                                    "properties": {
-                                        "bam_directory": {
-                                            "type": "string",
-                                            "format": "path",
-                                            "description": "BAM files to use in the analysis.",
-                                            "help_text": "This accepts the path to a folder containing BAM files."
-                                        }
-                                    }
-                                },
-                                {
-                                    "required": [
-                                        "cibersortx_username"
-                                    ],
-                                    "properties": {
-                                        "cibersortx_username": {
-                                            "type": "string",
-                                            "description": "CIBERSORTx account username.",
-                                            "help_text": "Required to authenticate with the CIBERSORTx service."
-                                        }
-                                    }
-                                },
-                                {
-                                    "required": [
-                                        "cibersortx_token"
-                                    ],
-                                    "properties": {
-                                        "cibersortx_token": {
-                                            "type": "string",
-                                            "description": "CIBERSORTx authentication token.",
-                                            "help_text": "Required to authenticate with the CIBERSORTx service."
-                                        }
-                                    }
-                                }
+                                { "$ref": "#/definitions/sample_processing_options" }
                             ]
                         }
                     ]
                 }
             ]
-        },
-        "samples": {
-            "title": "Sample Options",
-            "type": "object",
-            "fa_icon": "fas fa-vials",
-            "description": "Parameters that relate to samples such as sample name and bam directory.",
-            "properties": {
-                "sample": {
-                    "type": "string",
-                    "title": "Sample name",
-                    "description": "A single sample name.",
-                    "help_text": "This is used to specify a single sample name of your choosing."
-                },
-                "bam_directory": {
-                    "type": "string",
-                    "format": "path",
-                    "description": "BAM files to use in the analysis.",
-                    "help_text": "This accepts the path to a folder containing BAM files."
-                }
-            }
         },
         "output": {
             "title": "Output Options",
@@ -229,7 +224,8 @@
                 "out_dir": {
                     "type": "string",
                     "format": "directory-path",
-                    "description": "Directory for output of all workflow results. Defaults to <project_name> if not set."
+                    "description": "Directory for output of all workflow results. Defaults to <project_name> if not set.",
+                    "hidden": true
                 }
             }
         },
@@ -244,6 +240,12 @@
                     "default": 5000,
                     "description": "Buffer size in base pairs around target regions.",
                     "help_text": "Defines the buffer added around target regions for analysis."
+                },
+                "chrom_sizes_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to a chromosome sizes file. If not provided, defaults to the bundled resources/hg38_no_alt.chrom_sizes file.",
+                    "help_text": "A two-column tab-separated file of chromosome names and sizes, generated from a genome index file (.fai) using `cut -f1,2`. Required for --make_target_bed. If not provided, the bundled hg38_no_alt.chrom_sizes file in the resources directory is used. It is strongly recommended to generate this file from the same reference genome you intend to use for sequencing."
                 },
                 "min_genome_coverage": {
                     "type": "number",
@@ -310,21 +312,14 @@
                     "type": "string",
                     "default": "dna_r10.4.1_e8.2_400bps_hac@v4.1.0",
                     "description": "ONT basecaller config string passed to wf-human-variation.",
-                    "help_text": "Overrides the default basecaller configuration used by wf-human-variation. Only needed when running with original cell line data or non-standard basecalling configurations.",
+                    "help_text": "Overrides the default basecaller configuration used by wf-human-variation. Only needed when running with non-standard basecalling configurations.",
                     "hidden": true
                 },
                 "target_bedfile": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "Path to a bed file of target regions to use in the analysis. This defaults to the bed file generated by the workflow from the --make_target_bed mode, but can be set to point elsewhere if necessary.",
-                    "help_text": "This is used to specify a bed file of target regions to use in the analysis. This is required for the non-target bed file generation mode."
-                },
-                "meth_coverage_threshold": {
-                    "type": "integer",
-                    "default": 30,
-                    "description": "Minimum coverage threshold for a CpG site to be used in all methylation analysis, including immune infiltrate deconvolution.",
-                    "help_text": "The default of 30 is conservatively high for results to be interpreted with confidence. For development and testing we recommend setting it lower in order to use more sites (20 should be fine for most purposes).",
-                    "hidden": false
+                    "description": "Path to a bed file of target regions to use in the analysis. ",
+                    "help_text": "This defaults to the `<project_name>.targets_for_align.bed` file generated by the workflow from the --make_target_bed mode, but can be set to point elsewhere if necessary."
                 },
                 "singularity_cache": {
                     "type": "string",
@@ -333,73 +328,11 @@
                     "help_text": "Set this to singularity.cacheDir when using the singularity profile.",
                     "hidden": true
                 },
-                "cibersortx_username": {
-                    "type": "string",
-                    "default": "",
-                    "description": "CIBERSORTx account username.",
-                    "help_text": "Required to authenticate with the CIBERSORTx service.",
-                    "hidden": true
-                },
-                "cibersortx_token": {
-                    "type": "string",
-                    "default": "",
-                    "description": "CIBERSORTx authentication token.",
-                    "help_text": "Required to authenticate with the CIBERSORTx service.",
-                    "hidden": true
-                },
                 "r_methyl_container": {
                     "type": "string",
                     "description": "Path or URI to the R methylation/CIBERSORTx container image.",
                     "help_text": "If null, falls back to containers/methylcibersort.sandbox.",
                     "hidden": true
-                },
-                "methylcibersort_cancer_type": {
-                    "type": "string",
-                    "default": "bladder",
-                    "title": "MethylCIBERSORT cancer type",
-                    "description": "Cancer type signature to use for MethylCIBERSORT deconvolution.",
-                    "help_text": "Select the cancer-type reference signature used by MethylCIBERSORT. Must match one of the available signature sets bundled with the MethylCIBERSORT R package (V2_Signatures). Available options: acute_myeloid_leukaemia, B_cell_leukemia, B_cell_lymphoma, biliary_tract, bladder, breast, Burkitt_lymphoma, chronic_myeloid_leukaemia, endometrium, Glioma, haematopoietic_neoplasm.other, head_and_neck, Hodgkin_lymphoma, kidney, large_intestine, liver, lung_NSCLC_adenocarcinoma, lung_NSCLC_large_cell, lung_NSCLC_not_specified, lung_NSCLC_squamous_cell_carcinoma, lung_small_cell_carcinoma, lymphoblastic_leukemia, lymphoblastic_T_cell_leukaemia, lymphoid_neoplasm_other, melanoma, mesothelioma, MethylCIBERSORT_KoestlerRuns, Myeloma, neuroblastoma, not_specified, oesophagus, ovary, pancreas, prostate, sarcoma, soft_tissue_other, stomach, T_cell_leukemia, thyroid.",
-                    "enum": [
-                        "acute_myeloid_leukaemia",
-                        "B_cell_leukemia",
-                        "B_cell_lymphoma",
-                        "biliary_tract",
-                        "bladder",
-                        "breast",
-                        "Burkitt_lymphoma",
-                        "chronic_myeloid_leukaemia",
-                        "endometrium",
-                        "Glioma",
-                        "haematopoietic_neoplasm.other",
-                        "head_and_neck",
-                        "Hodgkin_lymphoma",
-                        "kidney",
-                        "large_intestine",
-                        "liver",
-                        "lung_NSCLC_adenocarcinoma",
-                        "lung_NSCLC_large_cell",
-                        "lung_NSCLC_not_specified",
-                        "lung_NSCLC_squamous_cell_carcinoma",
-                        "lung_small_cell_carcinoma",
-                        "lymphoblastic_leukemia",
-                        "lymphoblastic_T_cell_leukaemia",
-                        "lymphoid_neoplasm_other",
-                        "melanoma",
-                        "mesothelioma",
-                        "MethylCIBERSORT_KoestlerRuns",
-                        "Myeloma",
-                        "neuroblastoma",
-                        "not_specified",
-                        "oesophagus",
-                        "ovary",
-                        "pancreas",
-                        "prostate",
-                        "sarcoma",
-                        "soft_tissue_other",
-                        "stomach",
-                        "T_cell_leukemia",
-                        "thyroid"
-                    ]
                 }
             }
         },

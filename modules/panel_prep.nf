@@ -6,12 +6,16 @@ nextflow.enable.dsl = 2
 // Processes (DSL2: defined outside the workflow block; no 'from' / 'into')
 // ---------------------------------------------------------------------------
 
+// Note that processes "index_ref" and "get_chrom_sizes" are no longer needed as these files are provided as resources, but they are retained here for completeness and in case they are needed for future reference or modifications
+// I want to use them so the user doesn't need to do more stuff, but I am currently not sure how to generate them so they go into the wf-panorama/resources directory rather than the projects directory. Also need to add a check to see if the files already exist in resources and skip these steps if they do, to avoid unnecessary processing.
+
+
 process index_ref {
     tag "index_ref"
     cpus 1
     memory '4 GB'
     time '30m'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "resources", mode: 'copy'
 
     input:
@@ -46,12 +50,34 @@ process get_chrom_sizes {
     """
 }
 
+
+process get_immune_reference {
+    tag "get_immune_reference"
+    cpus 1
+    memory '2 GB'
+    time '15m'
+    container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sif"
+    publishDir "${params.out_dir}", mode: 'copy'
+
+    input:
+        val cancer_type
+
+    output:
+        path "${cancer_type}.mCS_ref.csv", emit: immune_ref
+
+    script:
+    """
+    micromamba run -n mCS Rscript ${projectDir}/bin/get_mCS_ref_csv.R ${cancer_type} ${cancer_type}.mCS_ref.csv
+    """
+}
+
+
 process make_panel_bed {
     tag "make_panel_bed"
     cpus 2
     memory '8 GB'
     time '1h'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     // Only publish the all_targets BED (targets_for_align.bed); suppress biomarker_panel.bed
     publishDir "${params.out_dir}/minknow_input", mode: 'copy',
         saveAs: { filename -> filename == "biomarker_panel.bed" ? null : filename }
@@ -82,7 +108,7 @@ process run_make_adaptive_ref {
     cpus 2
     memory '8 GB'
     time '1h'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     // No publishDir – outputs are intermediate files only
 
     input:
@@ -119,7 +145,7 @@ process check_coverage {
     memory '4 GB'
     time '30m'
     debug true
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     // Only publish the final buffered targets BED (targets_buffed.bed)
     publishDir "${params.out_dir}/minknow_input", mode: 'copy'
 
@@ -159,35 +185,59 @@ workflow panel_prep {
         def final_align_bed_name = "${params.project_name}.targets_for_align.bed"
         def final_bed_name       = "${params.project_name}.targets_buffed.bed"
 
-        // Input resource files
-        def ref_fasta  = file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
-        def epic_locs  = file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
-        def immune_ref = file("${projectDir}/resources/ref_atlas_bladder.csv")  // TODO: replace with actual immune reference file
+        // def ref_fasta  = file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
+        // def ref_fai    = file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai")
+        // def epic_locs  = file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
 
-        ref_ch        = Channel.fromPath(ref_fasta.toString())
-                                .ifEmpty { error "Reference fasta not found: ${ref_fasta}" }
-        epic_locs_ch  = Channel.of(epic_locs)
-        immune_ref_ch = Channel.of(immune_ref)
+        def ref_fasta = params.reference_genome 
+                        ? file(params.reference_genome) 
+                        : file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
+
+        def ref_fai = params.reference_genome_idx 
+                        ? file(params.reference_genome_idx) 
+                        : file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai")
+
+        def chrom_sizes_path = params.chrom_sizes_file 
+                                ? file(params.chrom_sizes_file) 
+                                : file("${projectDir}/resources/hg38_no_alt.chrom_sizes")
+
+        def epic_locs = params.Illumina_epic_locs 
+                                ? file(params.Illumina_epic_locs) 
+                                : file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
+
+        ref_ch          = Channel.fromPath(ref_fasta.toString(), checkIfExists: true)
+        ref_idx_ch      = Channel.fromPath(ref_fai.toString(), checkIfExists: true)
+        chrom_sizes_ch  = Channel.fromPath(chrom_sizes_path.toString(), checkIfExists: true)
+        epic_locs_ch    = Channel.fromPath(epic_locs.toString(), checkIfExists: true)
+        // immune_ref_ch = Channel.of(immune_ref)
 
         // 1. Index the reference
-        index_ref(ref_ch)
+        // index_ref(ref_ch)
 
         // 2. Generate chrom sizes from the .fai
-        get_chrom_sizes(index_ref.out.fai)
+        // get_chrom_sizes(index_ref.out.fai)
 
-        // 3. Build panel BED and all-targets BED from panel metadata
-        make_panel_bed(panel_metadata_ch, immune_ref_ch, epic_locs_ch, final_align_bed_name)
+        // 1. Generate the immune reference using the R container
+        get_immune_reference(Channel.of(params.mCS_cancer_type))
 
-        // 4. Generate MinKNOW adaptive-sampling reference files
+        // 2. Build panel BED and all-targets BED from panel metadata
+        make_panel_bed(
+            panel_metadata_ch, 
+            get_immune_reference.out.immune_ref, 
+            epic_locs_ch, 
+            final_align_bed_name
+        )
+
+        // 3. Generate MinKNOW adaptive-sampling reference files
         run_make_adaptive_ref(
             make_panel_bed.out.all_targets,
             ref_ch,
-            index_ref.out.fai,
-            get_chrom_sizes.out.chrom_sizes,
+            ref_idx_ch,
+            chrom_sizes_ch,
             Channel.of(buffer_bp)
         )
 
-        // 5. Check coverage and produce final buffered targets BED
+        // 4. Check coverage and produce final buffered targets BED
         check_coverage(
             run_make_adaptive_ref.out.minknow_bed,
             final_bed_name,

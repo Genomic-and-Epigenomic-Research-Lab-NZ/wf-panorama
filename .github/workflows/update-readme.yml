@@ -1,0 +1,41 @@
+name: Embed external_downloads into README
+
+on:
+  push:
+    paths:
+      - 'external_downloads.md'
+      - 'README.md'
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Embed external_downloads.md into README.md
+        run: |
+          # Replace everything between the markers with the contents of external_downloads.md
+          python3 - <<'EOF'
+          import re
+
+          with open("external_downloads.md") as f:
+              insert = f.read().strip()
+
+          with open("README.md") as f:
+              content = f.read()
+
+          pattern = r'(<!-- BEGIN:external_downloads -->).*?(<!-- END:external_downloads -->)'
+          replacement = f'\\1\n{insert}\n\\2'
+          updated = re.sub(pattern, replacement, content, flags=re.DOTALL)
+
+          with open("README.md", "w") as f:
+              f.write(updated)
+          EOF
+
+      - name: Commit updated README
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --staged --quiet || git commit -m "docs: auto-embed external_downloads.md into README"
+          git push

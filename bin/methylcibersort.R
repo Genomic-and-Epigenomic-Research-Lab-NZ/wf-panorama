@@ -1,10 +1,13 @@
 #!/usr/bin/env Rscript
+
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 4) stop("Usage: methylcibersort.R <input_beta_matrix> <mixture_matrix_name> <base_sig_matrix_filename> <sample_name>")
+if (length(args) < 4) stop("Usage: methylcibersort.R <input_beta_matrix> <mixture_matrix_name> <base_sig_matrix_filename> <sample_name> [cancer_type]")
+
 input_beta_matrix <- args[1]
 mixture_matrix_name <- args[2]
 base_sig_matrix_filename <- args[3]
 sample_name <- args[4]
+cancer_type <- args[5]
 
 # helper to read CSV/TSV
 read_input <- function(path) {
@@ -42,13 +45,13 @@ beta_df$probe <- NULL
 colnames(beta_df) <- sample_name
 beta_df <- as.matrix(beta_df)
 
-# write mixture matrix as tab-delimited
-mix_out <- paste0(mixture_matrix_name, ".txt")
-cat("Writing mixture matrix to:", mix_out, "\n")
-write.table(
-    mix_df,
-    file = mix_out, sep = "\t", row.names = FALSE, quote = FALSE
-)
+# # write mixture matrix as tab-delimited
+# mix_out <- paste0(mixture_matrix_name, ".txt")
+# cat("Writing mixture matrix to:", mix_out, "\n")
+# write.table(
+#     mix_df,
+#     file = mix_out, sep = "\t", row.names = FALSE, quote = FALSE
+# )
 
 # If MethylCIBERSORT is available, attempt to use its helper; otherwise write signature file placeholder
 # suppressWarnings(suppressMessages({
@@ -60,7 +63,15 @@ library(MethylCIBERSORT)
 cat("MethylCIBERSORT available; preparing signature and mixture using package functions\n")
 # load signatures
 data("V2_Signatures")
-base_sig_matrix <- Signatures$bladder_v2_Signature.txt
+sig_key <- paste0(cancer_type, "_v2_Signature.txt")
+cat("Using cancer type signature:", sig_key, "\n")
+if (!sig_key %in% names(Signatures)) {
+    stop(paste(
+        "Cancer type signature not found in V2_Signatures:", sig_key,
+        "\nAvailable signatures:", paste(names(Signatures), collapse = ", ")
+    ))
+}
+base_sig_matrix <- Signatures[[sig_key]]
 
 # Export signature to file
 cat("Writing minimal signature to: ", base_sig_matrix_filename, "\n")

@@ -38,12 +38,16 @@ CHROM_LENGTHS = {
     "chrM": 16569
 }
 
-VARIANT_TYPE = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)"
+BIOMARKER_TYPE_FULL = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)"  # TODO: changed from VARIANT_TYPE, may have broken things. Also this will need updating if we add more types to the panel data. 
+VARIANT_TYPE = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)"  # TODO: changed from VARIANT_TYPE, may have broken things. Also this will need updating if we add more types to the panel data. 
+BIOMARKER_ID = "ID"
 BIOMARKER_NAME = "Biomarker name"
-RESULT_OPTIONS = "Result Options"
+BIOMARKER_TYPE = "Biomarker Type"
 SCORING_TYPE = "Scoring Type"
+RESULT_OPTIONS = "Result Options"
+RESULT = "Result"
 
-preclin_stage_panel_result_header = ["ID", BIOMARKER_NAME, SCORING_TYPE, "Biomarker Type", RESULT_OPTIONS, "Result"]
+preclin_stage_panel_result_header = [BIOMARKER_ID, BIOMARKER_NAME, SCORING_TYPE, BIOMARKER_TYPE, RESULT_OPTIONS, RESULT]
 
 variant_dict_columns_to_add = ['ClinVar', 'Significance (ClinVar)', 'Consequence (Clinvar)', 'Reference Allele', 'Variant Allele', 'Genotype', 'HGVS.c', 'HGVS.p', 'SV Length', 'SV Type']
 

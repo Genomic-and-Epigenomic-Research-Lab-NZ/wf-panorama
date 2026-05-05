@@ -3,7 +3,7 @@ process make_classifier_input {
     cpus 1
     memory '8 GB'
     time '1h'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}", mode: 'copy'
     input:
         path panel_meta
