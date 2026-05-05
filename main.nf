@@ -52,7 +52,7 @@ workflow generate_target_bed {
 
         // Publish target bed and fasta for MinKNOW adaptive sampling
         panel_prep.out.minknow_bed
-            | map { f -> tuple(f, "${params.project_name}/minknow_input") } 
+            | map { f -> tuple(f, "minknow_input") } 
             | publish
         // panel_prep.out.minknow_fasta
         //     | map { f -> tuple(f, "${params.project_name}/minknow_input") } 

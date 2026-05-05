@@ -1,0 +1,34 @@
+Bootstrap: docker
+From: mambaorg/micromamba:latest
+
+%files
+    mCS.yaml /opt/mCS.yaml
+    MethylCIBERSORT_0.2.0.tar.gz /opt/MethylCIBERSORT_0.2.0.tar.gz
+
+%post
+    apt-get update && apt-get install -y \
+        build-essential \
+        gfortran \
+        git \
+        bzip2 \
+        libarchive-dev \
+        procps       
+        # ^ adds 'ps', required by Nextflow
+    
+    # Initialize shell for micromamba
+    eval "$(micromamba shell-init -s bash)"
+
+    micromamba create --file /opt/mCS.yaml
+
+    # Activate environment and install R package
+    micromamba run -n mCS R CMD INSTALL /opt/MethylCIBERSORT_0.2.0.tar.gz
+
+    micromamba clean --all --yes
+
+%environment
+    export MAMBA_ROOT_PREFIX=/opt/conda
+    export MAMBA_EXE=/usr/local/bin/micromamba
+    export XDG_CACHE_HOME=/tmp
+    
+%runscript
+    exec "$@"
