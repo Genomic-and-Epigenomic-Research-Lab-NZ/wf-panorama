@@ -9,9 +9,8 @@
 - [Panorama](#panorama)
   - [👇 Contents](#-contents)
   - [🧬 Introduction](#-introduction)
-    - [Panorama is intended for use as follows:](#panorama-is-intended-for-use-as-follows)
-      - [Stage One: In a Pre-Clinical Trial for a defined disease and single\* treatment option 📋](#stage-one-in-a-pre-clinical-trial-for-a-defined-disease-and-single-treatment-option-)
-      - [Stage Two: Patient sample reporting following a successful clinical trial 💊](#stage-two-patient-sample-reporting-following-a-successful-clinical-trial-)
+    - [Stage One: In a Pre-Clinical Trial for a defined disease and single\* treatment option 📋](#stage-one-in-a-pre-clinical-trial-for-a-defined-disease-and-single-treatment-option-)
+    - [Stage Two: Patient sample reporting following a successful clinical trial 💊](#stage-two-patient-sample-reporting-following-a-successful-clinical-trial-)
   - [🖥️ Compute requirements](#️-compute-requirements)
   - [🥳 Third-party requirements](#-third-party-requirements)
   - [🏁 Install and run](#-install-and-run)
@@ -22,21 +21,11 @@
     - [Run command](#run-command)
   - [🎈 Usage](#-usage)
     - [General Input Parameters](#general-input-parameters)
-      - [Tissue type options](#tissue-type-options)
     - [General Output Parameters](#general-output-parameters)
     - [Mode `make_target_bed`](#mode-make_target_bed)
-      - [Input](#input)
-      - [Output](#output)
     - [Mode `clin_trial_mode`](#mode-clin_trial_mode)
-      - [Input](#input-1)
     - [Mode `clinical_mode`](#mode-clinical_mode)
-      - [Input](#input-2)
     - [Outputs for clin\_trial and clinical modes](#outputs-for-clin_trial-and-clinical-modes)
-      - [Output directory `<sample name>/wf-humvar-run`](#output-directory-sample-namewf-humvar-run)
-      - [Output directory `<sample name>/mod_calling`](#output-directory-sample-namemod_calling)
-      - [Output directory `<sample name>/snv_annotation`](#output-directory-sample-namesnv_annotation)
-      - [Output directory `<sample name>/methylCS`](#output-directory-sample-namemethylcs)
-      - [Output directory `<sample name>/immune_infiltrate`](#output-directory-sample-nameimmune_infiltrate)
   - [🎯 Biomarker panel input](#-biomarker-panel-input)
   - [✍️ Authors](#️-authors)
   - [🗝️ Licence](#️-licence)
@@ -53,8 +42,9 @@ This is a bioinformatic pipeline utilising the capabilities of nanopore sequenci
 
 Panorama is built using the Nextflow workflow language and is intended to be used in the [Epi2ME](https://github.com/epi2me-labs) framework [Oxford Nanopore Technologies](https://community.nanoporetech.com).
 
-### Panorama is intended for use as follows:
-#### Stage One: In a Pre-Clinical Trial for a defined disease and single* treatment option 📋
+Panorama is intended for use as follows:  
+
+### Stage One: In a Pre-Clinical Trial for a defined disease and single* treatment option 📋
    1. Biomarkers are input via a csv file, as detailed in the section [Biomarker panel input](#biomarker-panel-input) below. This will form the basis of the bed file used for adaptive sampling, and is also used for downstream pipeline processes. Biomarkers can include SNVs, methylation markers, and certain immune infiltrate markers as determined by immune deconvolution using methylation markers.
    2. Tumour samples are nanopore sequenced using adaptive sampling and a bed file containing the target regions required for biomarker analysis. This bed file is produced by this pipeline with the flag `--make_target_bed` and the biomarker csv file using the input parameter `--panel_metadata`. Resulting bam files are used as input to Panorama. Bam files must be basecalled using modified base calling (5mC+5hmC contexts), and aligned to the hg38 genome.
    3. Using the flag `--clin_trial_mode` the pipeline will output sample data as a csv file corresponding to the input biomarkers.
@@ -62,7 +52,7 @@ Panorama is built using the Nextflow workflow language and is intended to be use
 
 **Multiple treatment options will be available in a future update*
 
-#### Stage Two: Patient sample reporting following a successful clinical trial 💊
+### Stage Two: Patient sample reporting following a successful clinical trial 💊
    1. Using the results of the pre-clinical trial described above, and the final version of the biomarker input with classifier results, a single patient sample can be submitted to this pipeline as before, and will output a report based on the clinical trial results.  
    2. The pipeline can be run for a clinical sample using the flag `--clinical_mode`.
    
@@ -346,9 +336,6 @@ nextflow run ../wf-panorama \
     -resume
 ```
 
-> [!WARNING] 
-> Please note that on `-resume`, Nextflow checks if `<project_name>/<sample>/.nextflow_cache/wf-humvar` exists. If it does, the whole process is skipped, regardless of the task hash. This is to prevent unnecessary rerunning of this particular computationally heavy task. If you change `--bed`, `--bam`, etc., the cached wf-humvar directory will still be used. If you need to rerun the wf-human-variation part of the workflow, we recommend you manually delete the entire `<sample_name>` directory to enable a clean restart. If you are familiar with Nextflow and feel confident, you can `cd` into the correct directory and set this workflow to `-resume` if you wish.
-
 ### Mode `clinical_mode`
 
 #### Input
@@ -414,15 +401,36 @@ Along with nextflow-generated directories (that can be removed when finished to 
 - sample.wf_sv.vcf.gz
 - sample.wf_sv.vcf.gz.tbi
 
+> [!WARNING] 
+> Please note that on `-resume`, Nextflow checks if `<project_name>/<sample>/.nextflow_cache/wf-humvar` exists. If it does, the whole process is skipped, regardless of the task hash. This is to prevent unnecessary rerunning of this particular computationally heavy task. If you change `--bed`, `--bam`, etc., the cached wf-humvar directory will still be used. If you need to rerun the wf-human-variation part of the workflow, we recommend you manually delete the entire `<sample_name>` directory to enable a clean restart. If you are familiar with Nextflow and feel confident, you can `cd` into the correct directory and set this workflow to `-resume` independent of Panorama if you wish.
+
+
 #### Output directory `<sample name>/mod_calling`
+
+- sample.methatlas.csv
+- sample.mod_results.csv
+- sample.post_beta.csv
+- sample.pre_beta.csv
+- sample.rawmod_results.csv
+- sample.wf_mods.all.bedmethyl.bed
+- sample.wf_mods.all.dss_format.tsv
+
 #### Output directory `<sample name>/snv_annotation`
+
+- sample.raw_snv_results.csv
+- sample.snv_results.csv
+
 <!-- #### Output directory `<sample name>/sv_annotation`
 This module is not yet implemetned, there is currently an empty placeholder output -->
 #### Output directory `<sample name>/methylCS`
-#### Output directory `<sample name>/immune_infiltrate`
+<!-- TODO: put this output in immune infiltrate -->
 
-> [!WARNING] 
-> As in [clinical trial mode](#mode-clin_trial_mode): Please note that on `-resume`, Nextflow checks if `<project_name>/<sample>/.nextflow_cache/wf-humvar` exists. If it does, the whole process is skipped, regardless of the task hash. This is to prevent unnecessary rerunning of this particular computationally heavy task. If you change `--bed`, `--bam`, etc., the cached wf-humvar directory will still be used. If you need to rerun the wf-human-variation part of the workflow, we recommend you manually delete the entire `<sample_name>` directory to enable a clean restart. If you are familiar with Nextflow and feel confident, you can `cd` into the correct directory and set this workflow to `-resume` independent of Panorama if you wish.
+- CIBERSORTx_sample_Results.csv
+- sample.CS_mix_matrix.txt
+- sample.bladder.mCS_ref.txt
+
+#### Output directory `<sample name>/immune_infiltrate`
+- sample.immune_panel_results.csv
 
 
 ## 🎯 Biomarker panel input
