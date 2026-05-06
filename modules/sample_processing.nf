@@ -155,6 +155,29 @@ process run_CIBERSORTX {
         """
 }
 
+process snv_prep {
+    tag "snv_prep.${params.sample}"
+    cpus 1
+    memory '4 GB'
+    time '30m'
+    container "file://${projectDir}/containers/general.sif"
+    publishDir "${params.out_dir}/${params.sample}/wf-humvar", mode: 'copy'
+    input:
+        path vcf_clin_raw
+        path vcf_gz
+    output:
+        path "${params.sample}.wf_snp_clinvar.vcf.gz",     emit: vcf_clin_gz
+        path "${params.sample}.wf_snp_clinvar.vcf.gz.tbi", emit: vcf_clin_tbi
+        path "${params.sample}.wf_snp.vcf.gz.tbi", emit: vcf_tbi
+    script:
+        // mv ${vcf_clin_raw}.gz ${params.sample}.wf_snp_clinvar.vcf.gz
+        """
+        bgzip -k ${vcf_clin_raw}
+        tabix ${vcf_clin_raw}.gz
+        tabix ${vcf_gz}
+        """
+}
+
 process snv_annotation {
     tag "snv_annotation.${params.sample}"
     cpus 2
@@ -167,6 +190,7 @@ process snv_annotation {
         path vcf_clin
         path vcf_clin_tbi
         path vcf_all
+        path vcf_all_tbi
     output:
         path "${params.sample}.raw_snv_results.csv", emit: snv_raw
         path "${params.sample}.snv_results.csv",     emit: snv_panel
@@ -251,6 +275,9 @@ workflow sample_processing {
         def ref_fasta = params.reference_genome 
                         ? file(params.reference_genome) 
                         : file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
+        def ref_fai = params.reference_genome_idx 
+                        ? file(params.reference_genome_idx) 
+                        : file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai")
         
         def epic_locs = params.Illumina_epic_locs 
                                 ? file(params.Illumina_epic_locs) 
@@ -261,13 +288,14 @@ workflow sample_processing {
                         : file("${projectDir}/resources/hg38.trf.bed")
 
         ref_ch          = Channel.fromPath(ref_fasta.toString(), checkIfExists: true)
+        ref_fai_ch          = Channel.fromPath(ref_fasta.toString(), checkIfExists: true)
         epic_locs_ch    = Channel.fromPath(epic_locs.toString(), checkIfExists: true)
         tr_ch           = Channel.fromPath(ref_trf.toString(), checkIfExists: true)
         // epic_ch is used by prep_for_getting_betas below
 
 
         // 1. Call WF_HUMVAR directly (no passthrough wrapper needed)
-        WF_HUMVAR(bam_dir_ch, ref_ch, targets_ch, tr_ch, sample_name_ch, project_name_ch)
+        WF_HUMVAR(bam_dir_ch, ref_ch, ref_fai_ch, targets_ch, tr_ch, sample_name_ch, project_name_ch)
 
         // WF_HUMVAR emits a flat list of files from results/<project>/<sample>/wf-humvar/*
         // Collect them into a single list, then filter by filename pattern.
@@ -284,14 +312,11 @@ workflow sample_processing {
         mods_ungrouped_ch = wf_humvar_files.map { files ->
             files.find { it.name =~ /\.wf_mods\.ungrouped\.bedmethyl\.gz$/ }
         }
-        vcf_clin_ch = wf_humvar_files.map { files ->
-            files.find { it.name =~ /\.wf_snp_clinvar\.vcf\.gz$/ }
-        }
-        vcf_clin_tbi_ch = wf_humvar_files.map { files ->
-            files.find { it.name =~ /\.wf_snp_clinvar\.vcf\.gz\.tbi$/ }
-        }
         vcf_all_ch = wf_humvar_files.map { files ->
             files.find { it.name =~ /\.wf_snp\.vcf\.gz$/ }
+        }
+        vcf_clin_raw_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_snp_clinvar\.vcf$/ }
         }
 
         // 2. Methylation pipeline
@@ -322,7 +347,8 @@ workflow sample_processing {
         }
 
         // 4. SNV / SV annotation
-        snv_annotation(panel_metadata_ch, vcf_clin_ch, vcf_clin_tbi_ch, vcf_all_ch)
+        snv_prep(vcf_clin_raw_ch, vcf_all_ch)
+        snv_annotation(panel_metadata_ch, snv_prep.out.vcf_clin_gz, snv_prep.out.vcf_clin_tbi, vcf_all_ch, snv_prep.out.vcf_tbi)
         sv_annotation(panel_metadata_ch, vcf_all_ch)
 
         // 5. Immune infiltrate

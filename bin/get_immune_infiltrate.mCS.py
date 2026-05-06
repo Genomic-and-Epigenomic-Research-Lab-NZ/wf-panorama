@@ -125,6 +125,6 @@ mapping = {
 for i, row in panel_data_infiltrate.iterrows():
     name = row[BIOMARKER_NAME]
     result = mapping.get(name, np.nan)
-    bm_classif_panel_df.loc[i] = [row['ID'], row[BIOMARKER_NAME], row[SCORING_TYPE], row[BIOMARKER_TYPE_FULL], row[RESULT_OPTIONS], result]
+    bm_classif_panel_df.loc[i] = [row[BIOMARKER_ID], row[BIOMARKER_NAME], row[SCORING_TYPE], row[BIOMARKER_TYPE_FULL], row[RESULT_OPTIONS], result]
 
 bm_classif_panel_df.to_csv(args.out, index=False)

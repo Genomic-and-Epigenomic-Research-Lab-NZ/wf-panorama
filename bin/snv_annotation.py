@@ -2,7 +2,7 @@
 import argparse
 import pandas as pd
 from cyvcf2 import VCF
-from shared_functions import variant_prep, get_location_string, get_annotation_dict, get_annotation_info_dict, add_result, variant_dict_columns_to_add, preclin_stage_panel_result_header, BIOMARKER_NAME, RESULT_OPTIONS
+from shared_functions import variant_prep, get_location_string, get_annotation_dict, get_annotation_info_dict, add_result, variant_dict_columns_to_add, preclin_stage_panel_result_header, BIOMARKER_ID, BIOMARKER_NAME, SCORING_TYPE, BIOMARKER_TYPE_FULL, RESULT_OPTIONS
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--panel', required=True)
@@ -82,5 +82,5 @@ merged_df.to_csv(snv_output, index=False)
 bm_classif_panel_df = pd.DataFrame(columns=preclin_stage_panel_result_header)
 only_genotypes = merged_df[merged_df['Genotype'] != '']
 for i, row in only_genotypes.iterrows():
-    bm_classif_panel_df.loc[i] = [row['ID'], row[BIOMARKER_NAME], row['Scoring Type'], row['Biomarker Type'], row[RESULT_OPTIONS], row['Genotype']]
+    bm_classif_panel_df.loc[i] = [row[BIOMARKER_ID], row[BIOMARKER_NAME], row[SCORING_TYPE], row[BIOMARKER_TYPE_FULL], row[RESULT_OPTIONS], row['Genotype']]
 bm_classif_panel_df.to_csv(snv_preclin_output, index=False)
