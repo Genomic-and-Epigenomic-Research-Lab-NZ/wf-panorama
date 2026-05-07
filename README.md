@@ -21,11 +21,21 @@
     - [Run command](#run-command)
   - [🎈 Usage](#-usage)
     - [General Input Parameters](#general-input-parameters)
+      - [Tissue type options](#tissue-type-options)
     - [General Output Parameters](#general-output-parameters)
     - [Mode `make_target_bed`](#mode-make_target_bed)
+      - [Input](#input)
+      - [Output](#output)
     - [Mode `clin_trial_mode`](#mode-clin_trial_mode)
+      - [Input](#input-1)
     - [Mode `clinical_mode`](#mode-clinical_mode)
+      - [Input](#input-2)
     - [Outputs for clin\_trial and clinical modes](#outputs-for-clin_trial-and-clinical-modes)
+      - [Output directory `<sample name>/wf-humvar-run`](#output-directory-sample-namewf-humvar-run)
+      - [Output directory `<sample name>/mod_calling`](#output-directory-sample-namemod_calling)
+      - [Output directory `<sample name>/snv_annotation`](#output-directory-sample-namesnv_annotation)
+      - [Output directory `<sample name>/methylCS`](#output-directory-sample-namemethylcs)
+      - [Output directory `<sample name>/immune_infiltrate`](#output-directory-sample-nameimmune_infiltrate)
   - [🎯 Biomarker panel input](#-biomarker-panel-input)
   - [✍️ Authors](#️-authors)
   - [🗝️ Licence](#️-licence)
@@ -132,7 +142,7 @@ On the plus side, you shouldn't need to download or set up any other packages!
 
 Containers:  
 - general.sif (0.4 GB)
-- methylcibersort.sif (1.8 GB)
+- methylcibersort.sif (1.8 GB)  
 Place these in the directory: `wf-panorama/containers/`  
 
 ### Human Genome Reference
