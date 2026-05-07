@@ -17,9 +17,3 @@ If using a different human genome build, these resources will need to be updated
 Resources to update:
 - Flow charts showing how this pipeline works, and suggested workflow for pre-clinical trial (`SectionFlowCharts`)
 - `MinKNOW_settings` directory containing images of Recommended MinKNOW settings to use (older version of MinKNOW)
-  
-Resources to remove:
-- CIBERSORT setup records (`CIBERSORT`) 
-- `MethylCIBERSORT_Release` directory containing raw MethylCIBERSORT tar file
-- bladder reference from methatlas: `ref_atlas_bladder.csv`
-

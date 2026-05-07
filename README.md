@@ -45,6 +45,7 @@
   - [📜 Pipeline History](#-pipeline-history)
   - [🎉 Acknowledgements](#-acknowledgements)
   - [📚 References](#-references)
+  - [AI Assistance](#ai-assistance)
 
 ## 🧬 Introduction
 
@@ -559,3 +560,16 @@ Many thanks go to the funders of this project, The Barbara Basham Medical Charit
 - Adaptive sampling reference file modified from:
   - Stephane Plaisance (VIB-NC) 2021
   - https://github.com/Nucleomics-VIB
+
+## AI Assistance
+
+Development of this project used AI-assisted coding tools:
+- GitHub Copilot (VS Code extension)
+- Claude Sonnet v4.x
+- GPT-5 mini
+- Prompt layering tool: @Sequera
+
+AI was used for language refactoring from Snakemake to Nextflow, and implementing industry-standard conventions. It was also used for wiring of Nextflow components and debugging.  
+AI tools were used interactively. Outputs were evaluated, edited, and validated by the author/s. No code was directly incorporated without review.  
+
+
