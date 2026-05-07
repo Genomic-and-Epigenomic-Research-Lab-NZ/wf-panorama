@@ -1,97 +1,225 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema",
     "$id": "https://raw.githubusercontent.com/./master/nextflow_schema.json",
-    "title": "epi2me-labs/wf-template",
-    "workflow_title": "Template workflow",
-    "description": "Nextflow workflow template repository.",
-    "demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-template/wf-template-demo.tar.gz",
-    "aws_demo_url": "https://ont-exd-int-s3-euwst1-epi2me-labs.s3.amazonaws.com/wf-template/wf-template-demo/aws.nextflow.config",
-    "url": "https://github.com/epi2me-labs/wf-template",
+    "title": "wf-panorama",
+    "workflow_title": "Panorama sample processing workflow",
+    "description": "Nextflow workflow for Panorama sample processing.",
+    "url": "https://github.com/lucy924/wf-panorama",
     "type": "object",
     "definitions": {
+        "sample_processing_options": {
+            "title": "Sample Processing Required Options",
+            "description": "Parameters required for both clin_trial_mode and clinical_mode.",
+            "type": "object",
+            "allOf": [
+                {
+                    "required": ["sample"],
+                    "properties": {
+                        "sample": {
+                            "type": "string",
+                            "description": "A single sample name.",
+                            "help_text": "This is used to specify a single sample name of your choosing."
+                        }
+                    }
+                },
+                {
+                    "required": ["bam_directory"],
+                    "properties": {
+                        "bam_directory": {
+                            "type": "string",
+                            "format": "path",
+                            "description": "BAM files to use in the analysis.",
+                            "help_text": "This accepts the path to a folder containing BAM files."
+                        }
+                    }
+                },
+                {
+                    "required": ["cibersortx_username"],
+                    "properties": {
+                        "cibersortx_username": {
+                            "type": "string",
+                            "description": "CIBERSORTx account username.",
+                            "help_text": "Required to authenticate with the CIBERSORTx service."
+                        }
+                    }
+                },
+                {
+                    "required": ["cibersortx_token"],
+                    "properties": {
+                        "cibersortx_token": {
+                            "type": "string",
+                            "description": "CIBERSORTx authentication token.",
+                            "help_text": "Required to authenticate with the CIBERSORTx service."
+                        }
+                    }
+                },
+                {
+                    "required": ["meth_coverage_threshold"],
+                    "properties": {
+                        "meth_coverage_threshold": {
+                            "type": "integer",
+                            "default": 30,
+                            "description": "Minimum coverage threshold for a CpG site to be used in all methylation analysis, including immune infiltrate deconvolution.",
+                            "help_text": "The default of 30 is conservatively high for results to be interpreted with confidence. For development and testing we recommend setting it lower in order to use more sites (20 should be fine for most purposes)."
+                        }
+                    }
+                }
+            ]
+        },
         "input": {
             "title": "Input Options",
             "type": "object",
             "fa_icon": "fas fa-arrow-right",
             "description": "Parameters for finding and handling input data for analysis.",
             "properties": {
-                "fastq": {
+                "make_target_bed": {
+                    "type": "boolean",
+                    "default": false,
+                    "title": "Generate target bed file for MinKNOW",
+                    "description": "Use the biomarker panel metadata to generate a target bed file for use in MinKNOW adaptive sampling. Will also generate a target bed file without buffer regions that is used as input for the other modes.",
+                    "help_text": "This is the flag to generate the target bed file for use in MinKNOW adaptive sampling. If true, the workflow will generate a target bed file based on the biomarker panel metadata and save it in the output directory."
+                },
+                "clin_trial_mode": {
+                    "type": "boolean",
+                    "default": false,
+                    "title": "Run sample processing for clinical trial mode",
+                    "description": "Use the biomarker panel metadata to generate classifier input files for a single patient sample for downstream machine learning classification.",
+                    "help_text": "This is the flag to run the sample processing workflow for clinical trial mode. If true, the workflow will process a single patient sample and generate the classifier input files for that sample based on the biomarker panel metadata. This mode is intended for use in a pre-clinical trial setting where the classifier input data is used for training a machine learning model to be applied in clinical mode."
+                },
+                "clinical_mode": {
+                    "type": "boolean",
+                    "default": false,
+                    "title": "Generate patient report in clinical mode",
+                    "description": "Turn on individual patient sample analysis report generation.",
+                    "help_text": "By default the workflow will not generate individual patient sample reports, and instead will only generate the data for use as input to a machine learning classification project. This option turns on the generation of individual patient sample reports based on the final machine learned classifier."
+                },
+                "project_name": {
+                    "type": "string",
+                    "title": "Project title",
+                    "description": "A single project name.",
+                    "help_text": "This designates a project name used as the top level of the results directory. Every sample output will be stored in sub-directories under the project name directory. This is required."
+                },
+                "panel_metadata": {
                     "type": "string",
                     "format": "path",
-                    "title": "FASTQ",
-                    "description": "FASTQ files to use in the analysis.",
-                    "help_text": "This accepts one of four cases: (i) the path to a single FASTQ file; (ii) the path to a folder containing FASTQ files; (iii) the path to a folder containing one level of sub-folders which in turn contain FASTQ files; (iv) the path to a MinKNOW experiment folder containing sub-folders for each sequenced sample. In the first and second case, a sample name can be supplied with `--sample`. In the third case, the data is assumed to be multiplexed with the names of the sub-folders as barcodes, and a sample sheet can be provided with `--sample_sheet`. In the fourth case, the data is assumed to be multiplexed with the names of the sub-folders as samples, and a sample sheet and/or sample name must be provided to indicate which samples to analyse."
+                    "default": "demo_input/panel_metadata.csv",
+                    "description": "Path to the input panel metadata CSV file. This is required.",
+                    "help_text": "Path to a CSV file containing panel metadata for the sample."
                 },
-                "bam": {
+                "mCS_cancer_type": {
                     "type": "string",
-                    "format": "path",
-                    "description": "BAM or unaligned BAM (uBAM) files to use in the analysis.",
-                    "help_text": "This accepts one of four cases: (i) the path to a single BAM file; (ii) the path to a folder containing BAM files; (iii) the path to a folder containing one level of sub-folders which in turn contain BAM files; (iv) the path to a MinKNOW experiment folder containing sub-folders for each sequenced sample. In the first and second case, a sample name can be supplied with `--sample`. In the third case, the data is assumed to be multiplexed with the names of the sub-folders as barcodes, and a sample sheet can be provided with `--sample_sheet`. In the fourth case, the data is assumed to be multiplexed with the names of the sub-folders as samples, and a sample sheet and/or sample name must be provided to indicate which samples to analyse."
-                },
-                "analyse_unclassified": {
-                    "type": "boolean",
-                    "default": false,
-                    "title": "Analyse unclassified reads",
-                    "description": "Analyse unclassified reads from input folder. By default the workflow will not process reads in the unclassified folder.",
-                    "help_text": "If selected and if the input is a multiplex folder the workflow will also process the unclassified folder."
-                },
-                "analyse_fail": {
-                    "type": "boolean",
-                    "default": false,
-                    "title": "Analyse reads marked as failed QC by the basecaller.",
-                    "description": "Analyse failed reads from input folder. By default the workflow will not process reads in a pod5_fail, bam_fail or fastq_fail sub-folders.",
-                    "help_text": "If selected and if the input is a multiplex folder the workflow will also process pod5_fail, bam_fail and fastq_fail folders."
-                },
-                "watch_path": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Enable to continuously watch the input directory for new input files.",
-                    "help_text": "This option enables the use of Nextflow\u2019s directory watching feature to constantly monitor input directories for new files."
+                    "default": "bladder",
+                    "title": "MethylCIBERSORT cancer type",
+                    "description": "Cancer type signature to use for MethylCIBERSORT deconvolution.",
+                    "help_text": "Select the cancer-type reference signature used by MethylCIBERSORT. Must match one of the available signature sets bundled with the MethylCIBERSORT R package (V2_Signatures). Available options: acute_myeloid_leukaemia, B_cell_leukemia, B_cell_lymphoma, biliary_tract, bladder, breast, Burkitt_lymphoma, chronic_myeloid_leukaemia, endometrium, Glioma, haematopoietic_neoplasm.other, head_and_neck, Hodgkin_lymphoma, kidney, large_intestine, liver, lung_NSCLC_adenocarcinoma, lung_NSCLC_large_cell, lung_NSCLC_not_specified, lung_NSCLC_squamous_cell_carcinoma, lung_small_cell_carcinoma, lymphoblastic_leukemia, lymphoblastic_T_cell_leukaemia, lymphoid_neoplasm_other, melanoma, mesothelioma, MethylCIBERSORT_KoestlerRuns, Myeloma, neuroblastoma, not_specified, oesophagus, ovary, pancreas, prostate, sarcoma, soft_tissue_other, stomach, T_cell_leukemia, thyroid.",
+                    "enum": [
+                        "acute_myeloid_leukaemia",
+                        "B_cell_leukemia",
+                        "B_cell_lymphoma",
+                        "biliary_tract",
+                        "bladder",
+                        "breast",
+                        "Burkitt_lymphoma",
+                        "chronic_myeloid_leukaemia",
+                        "endometrium",
+                        "Glioma",
+                        "haematopoietic_neoplasm.other",
+                        "head_and_neck",
+                        "Hodgkin_lymphoma",
+                        "kidney",
+                        "large_intestine",
+                        "liver",
+                        "lung_NSCLC_adenocarcinoma",
+                        "lung_NSCLC_large_cell",
+                        "lung_NSCLC_not_specified",
+                        "lung_NSCLC_squamous_cell_carcinoma",
+                        "lung_small_cell_carcinoma",
+                        "lymphoblastic_leukemia",
+                        "lymphoblastic_T_cell_leukaemia",
+                        "lymphoid_neoplasm_other",
+                        "melanoma",
+                        "mesothelioma",
+                        "MethylCIBERSORT_KoestlerRuns",
+                        "Myeloma",
+                        "neuroblastoma",
+                        "not_specified",
+                        "oesophagus",
+                        "ovary",
+                        "pancreas",
+                        "prostate",
+                        "sarcoma",
+                        "soft_tissue_other",
+                        "stomach",
+                        "T_cell_leukemia",
+                        "thyroid"
+                    ]
                 },
                 "client_fields": {
                     "type": "string",
                     "format": "file-path",
                     "description": "A JSON file of key value pairs to display on the report.",
-                    "help_text": "This is used to populate a table of additional information (for example, about upstream components of an assay) to the workflow report.",
+                    "help_text": "This is used to populate a table of additional information to the workflow report.",
                     "hidden": true
                 },
-                "fastq_chunk": {
-                    "title": "Fastq chunk size",
-                    "type": "integer",
-                    "description": "Sets the maximum number of reads per chunk returned from the data ingress layer.",
-                    "help_text": "Default is to not chunk data and return a single FASTQ file."
+                "report_title": {
+                    "type": "string",
+                    "title": "Clinical report title",
+                    "description": "Title to display on the generated clinical report.",
+                    "help_text": "Sets the title heading used in the per-sample clinical report generated in `--clinical_mode`. Defaults to the value of `--project_name` if not provided."
                 }
             },
-            "oneOf": [
+            "allOf": [
                 {
                     "required": [
-                        "fastq"
+                        "project_name",
+                        "panel_metadata",
+                        "mCS_cancer_type"
                     ]
                 },
                 {
-                    "required": [
-                        "bam"
+                    "oneOf": [
+                        {
+                            "required": [
+                                "make_target_bed"
+                            ],
+                            "properties": {
+                                "make_target_bed": {
+                                    "const": true
+                                }
+                            },
+                            "allOf": [
+                                { "$ref": "#/definitions/target_bed_options" }
+                            ]
+                        },
+                        {
+                            "required": [
+                                "clinical_mode"
+                            ],
+                            "properties": {
+                                "clinical_mode": {
+                                    "const": true
+                                }
+                            },
+                            "allOf": [
+                                { "$ref": "#/definitions/sample_processing_options" }
+                            ]
+                        },
+                        {
+                            "required": [
+                                "clin_trial_mode"
+                            ],
+                            "properties": {
+                                "clin_trial_mode": {
+                                    "const": true
+                                }
+                            },
+                            "allOf": [
+                                { "$ref": "#/definitions/sample_processing_options" }
+                            ]
+                        }
                     ]
                 }
             ]
-        },
-        "samples": {
-            "title": "Sample Options",
-            "type": "object",
-            "fa_icon": "fas fa-vials",
-            "description": "Parameters that relate to samples such as sample sheets and sample names.",
-            "properties": {
-                "sample_sheet": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "A CSV file used to map barcodes to sample aliases. The sample sheet can be provided when the input data is a folder containing sub-folders with FASTQ files.",
-                    "help_text": "The sample sheet is a CSV file with, minimally, columns named `barcode` and `alias`. Extra columns are allowed. A `type` column is required for certain workflows and should have the following values; `test_sample`, `positive_control`, `negative_control`, `no_template_control`. An optional `analysis_group` column is used by some workflows to combine the results of multiple samples. If the `analysis_group` column is present, it needs to contain a value for each sample."
-                },
-                "sample": {
-                    "type": "string",
-                    "description": "A single sample name for singleplexed data. For multiplex data, this will limit analysis to the single named sample."
-                }
-            }
         },
         "output": {
             "title": "Output Options",
@@ -101,9 +229,41 @@
             "properties": {
                 "out_dir": {
                     "type": "string",
-                    "default": "output",
                     "format": "directory-path",
-                    "description": "Directory for output of all workflow results."
+                    "description": "Directory for output of all workflow results. Defaults to <project_name> if not set.",
+                    "hidden": true
+                }
+            }
+        },
+        "target_bed_options": {
+            "title": "Adaptive Sampling Target bed file Options",
+            "type": "object",
+            "fa_icon": "fas fa-chart-bar",
+            "description": "Parameters controlling bed file creation. If bed file creation fails, tweaking these parameters is the first thing to try. Please see ONT guidelines for adaptive sampling here https://nanoporetech.com/document/adaptive-sampling#targeting-and-buffering-a-bed-file. You can do a final check of the generated bed file here: https://epi2me.nanoporetech.com/bed-bugs",
+            "properties": {
+                "buffersize_bp": {
+                    "type": "integer",
+                    "default": 5000,
+                    "description": "Buffer size in base pairs around target regions.",
+                    "help_text": "Defines the buffer added around target regions for analysis."
+                },
+                "chrom_sizes_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to a chromosome sizes file. If not provided, defaults to the bundled resources/hg38_no_alt.chrom_sizes file.",
+                    "help_text": "A two-column tab-separated file of chromosome names and sizes, generated from a genome index file (.fai) using `cut -f1,2`. Required for --make_target_bed. If not provided, the bundled hg38_no_alt.chrom_sizes file in the resources directory is used. It is strongly recommended to generate this file from the same reference genome you intend to use for sequencing."
+                },
+                "min_genome_coverage": {
+                    "type": "number",
+                    "default": 0.5,
+                    "description": "Minimum acceptable genome coverage (%). Defaults to 0.5%",
+                    "help_text": "Bed file coverage below this threshold will fail. If this happens, we recommend adjusting the buffersize_bp parameter to increase coverage of the target regions and rerun."
+                },
+                "max_genome_coverage": {
+                    "type": "number",
+                    "default": 5.0,
+                    "description": "Maximum acceptable genome coverage (%). Defaults to 5%",
+                    "help_text": "Bed file coverage above this threshold will fail. If this happens, we recommend adjusting the max_genome_coverage parameter ."
                 }
             }
         },
@@ -113,7 +273,74 @@
             "fa_icon": "far fa-question-circle",
             "description": "Advanced options for configuring processes inside the workflow.",
             "help_text": "These advanced options do not need to be changed for typical use, but allow fine tuning of workflows for users who want more control over the workflow.",
-            "properties": {}
+            "properties": {
+                "max_cores": {
+                    "type": "integer",
+                    "default": 16,
+                    "description": "Maximum number of CPU cores to use across all processes.",
+                    "help_text": "Sets an upper bound on the number of cores available to the workflow."
+                },
+                "wf_humvar_basecaller": {
+                    "type": "string",
+                    "description": "Basecaller model used for the wf-humvar sub-workflow.",
+                    "help_text": "Specify the basecaller model string if required by wf-humvar.",
+                    "hidden": true
+                },
+                "wf_humvar_profile": {
+                    "type": "string",
+                    "default": "singularity",
+                    "description": "Profile to use for the wf-humvar sub-workflow.",
+                    "help_text": "Controls which wf-humvar profile is applied during variant calling.",
+                    "hidden": true
+                },
+                "wf_humvar_threads": {
+                    "type": "integer",
+                    "default": 8,
+                    "description": "Number of threads for the wf-humvar sub-workflow.",
+                    "help_text": "Sets the number of threads passed to the wf-humvar process.",
+                    "hidden": true
+                },
+                "wf_humvar_bam_min_coverage": {
+                    "type": "integer",
+                    "default": 15,
+                    "description": "Minimum BAM coverage threshold passed to wf-human-variation.",
+                    "help_text": "Sets the minimum coverage value passed to wf-human-variation. Set to 0 to disable the check (useful for testing).",
+                    "hidden": true
+                },
+                "wf_humvar_resume": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Resume a previous wf-human-variation run if cached results exist.",
+                    "help_text": "When true, the pipeline skips re-running wf-human-variation if a cached result directory already exists for the sample. Set to false to force a fresh run.",
+                    "hidden": true
+                },
+                "ont_basecaller": {
+                    "type": "string",
+                    "default": "dna_r10.4.1_e8.2_400bps_hac@v4.1.0",
+                    "description": "ONT basecaller config string passed to wf-human-variation.",
+                    "help_text": "Overrides the default basecaller configuration used by wf-human-variation. Only needed when running with non-standard basecalling configurations.",
+                    "hidden": true
+                },
+                "target_bedfile": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Path to a bed file of target regions to use in the analysis. ",
+                    "help_text": "This defaults to the `<project_name>.targets_for_align.bed` file generated by the workflow from the --make_target_bed mode, but can be set to point elsewhere if necessary."
+                },
+                "singularity_cache": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Path to the Singularity image cache directory.",
+                    "help_text": "Set this to singularity.cacheDir when using the singularity profile.",
+                    "hidden": true
+                },
+                "r_methyl_container": {
+                    "type": "string",
+                    "description": "Path or URI to the R methylation/CIBERSORTx container image.",
+                    "help_text": "If null, falls back to containers/methylcibersort.sandbox.",
+                    "hidden": true
+                }
+            }
         },
         "misc": {
             "title": "Miscellaneous Options",
@@ -124,12 +351,7 @@
                 "disable_ping": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Enable to prevent sending a workflow ping.",
-                    "overrides": {
-                        "epi2mecloud": {
-                            "hidden": true
-                        }
-                    }
+                    "description": "Enable to prevent sending a workflow ping."
                 },
                 "help": {
                     "type": "boolean",
@@ -149,21 +371,12 @@
         }
     },
     "allOf": [
-        {
-            "$ref": "#/definitions/input"
-        },
-        {
-            "$ref": "#/definitions/samples"
-        },
-        {
-            "$ref": "#/definitions/output"
-        },
-        {
-            "$ref": "#/definitions/advanced_options"
-        },
-        {
-            "$ref": "#/definitions/misc"
-        }
+        { "$ref": "#/definitions/input" },
+        { "$ref": "#/definitions/samples" },
+        { "$ref": "#/definitions/output" },
+        { "$ref": "#/definitions/target_bed_options" },
+        { "$ref": "#/definitions/advanced_options" },
+        { "$ref": "#/definitions/misc" }
     ],
     "properties": {
         "aws_image_prefix": {
@@ -175,26 +388,29 @@
             "hidden": true
         },
         "monochrome_logs": {
-            "type": "boolean"
+            "type": "boolean",
+            "hidden": true
         },
         "validate_params": {
             "type": "boolean",
-            "default": true
+            "default": true,
+            "hidden": true
         },
         "show_hidden_params": {
-            "type": "boolean"
+            "type": "boolean",
+            "hidden": true
         }
     },
     "resources": {
         "recommended": {
-            "cpus": 2,
-            "memory": "2GB"
+            "cpus": 16,
+            "memory": "32GB"
         },
         "minimum": {
             "cpus": 2,
-            "memory": "2GB"
+            "memory": "4GB"
         },
-        "run_time": "5 minutes per sample",
-        "arm_support": true 
+        "run_time": "Variable per sample",
+        "arm_support": false
     }
 }
