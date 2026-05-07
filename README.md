@@ -40,7 +40,7 @@
 
 This is a bioinformatic pipeline utilising the capabilities of nanopore sequencing ([ONT](https://nanoporetech.com/)) to combine multiple biomarkers of different sources; specifically, mutations, methylation and tumour immune infiltrate. This can enable prediction of drug compatibility in cancer tumours. This pipeline was developed as a clinical bioinformatic workflow that requires little bioinformatic expertise to use. The results of such a tool, with the appropriate pre-clinical trial, can be integrated as part of a protocol aimed to assist molecular pathologists and clinicians to swiftly develop personalised treatment plans.  
 
-Panorama is built using the Nextflow workflow language and is intended to be used in the [Epi2ME](https://github.com/epi2me-labs) framework [Oxford Nanopore Technologies](https://community.nanoporetech.com).
+Panorama is built using the Nextflow workflow language and is intended to be used in the [Epi2ME](https://github.com/epi2me-labs) framework from [Oxford Nanopore Technologies](https://community.nanoporetech.com).
 
 Panorama is intended for use as follows:  
 
