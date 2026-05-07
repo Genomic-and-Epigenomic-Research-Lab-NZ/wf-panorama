@@ -142,7 +142,7 @@ On the plus side, you shouldn't need to download or set up any other packages!
 
 Containers:  
 - general.sif (0.4 GB)
-- methylcibersort.sif (1.8 GB)  
+- methylcibersort.sif (1.8 GB)
 Place these in the directory: `wf-panorama/containers/`  
 
 ### Human Genome Reference
