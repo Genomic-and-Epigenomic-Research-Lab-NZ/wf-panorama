@@ -1,11 +1,12 @@
 ### Containers
-The container components of this tool are very large. These are hosted on [figshare.com](figshare.com)
+The container components of this tool are very large. These are hosted on [figshare.com](figshare.com):  
+https://figshare.com/account/articles/32165103  
 You will need to download these containers separately in order to use this tool.  
 On the plus side, you shouldn't need to download or set up any other packages!
 
 Containers:  
-- general.sif ( GB)
-- methylcibersort.sif ( GB)
+- general.sif (0.4 GB)
+- methylcibersort.sif (1.8 GB)
 Place these in the directory: `wf-panorama/containers/`  
 
 ### Human Genome Reference
@@ -30,7 +31,7 @@ ref="GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"  # or your reference file
 samtools faidx ${ref}
 # this creates a file called "GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai"
 ```
-The index file is required to be pre-built.  
+The index file is required to be pre-built. Ensure that this file is in the `resources` directory.   
 
 ### Chromosome size file
 A chrom_sizes file is also required. While there is one included in the resources directory, it should be replaced by a fresh file created from the above index file like so:  
@@ -39,3 +40,8 @@ fai="/path/to/<genome.fna.fai>"
 cd wf-panorama/resources
 cut -f1,2 ${fai} > hg38_no_alt.chrom_sizes
 ```
+This is then passed to the pipeline using the following parameter:  
+```
+--chrom_sizes_file hg38_no_alt.chrom_sizes
+```
+Ensure that this file is in the `resources` directory. If it is not specified, the pipeline will default to looking for `hg38_no_alt.chrom_sizes` in the `resources` directory.  

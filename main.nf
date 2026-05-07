@@ -13,30 +13,31 @@ include { make_classifier_input }   from './modules/make_classifier_input.nf'
 include { get_scores }              from './modules/make_sample_report.nf'
 include { generate_report }         from './modules/make_sample_report.nf'
 
-
-// Use publishDir when possible in the process but this is for when is needed output
-// different files. E.g.: outputs from ingress processes or inputs provided by the user.
-// See https://github.com/nextflow-io/nextflow/issues/1636. This is the only way to
-// publish files from a workflow whilst decoupling the publish from the process steps.
-// The process takes a tuple containing the filename and the name of a sub-directory to
-// put the file into. If the latter is `null`, puts it into the top-level directory.
-process publish {
-    // publish inputs to output directory
+// Aliased publish processes — DSL2 requires a unique process instance per workflow invocation
+process publish_target_bed {
     label "wftemplate"
-    publishDir (
-        params.out_dir,
-        mode: "copy",
-        saveAs: { dirname ? "$dirname/$fname" : fname }
-    )
-    input:
-        tuple path(fname), val(dirname)
-    output:
-        path fname
-    script:
-    """
-    echo "Writing output files"
-    """
+    publishDir ( params.out_dir, mode: "copy", saveAs: { dirname ? "$dirname/$fname" : fname } )
+    input:  tuple path(fname), val(dirname)
+    output: path fname
+    script: "echo 'Writing output files'"
 }
+
+process publish_classifier {
+    label "wftemplate"
+    publishDir ( params.out_dir, mode: "copy", saveAs: { dirname ? "$dirname/$fname" : fname } )
+    input:  tuple path(fname), val(dirname)
+    output: path fname
+    script: "echo 'Writing output files'"
+}
+
+process publish_report {
+    label "wftemplate"
+    publishDir ( params.out_dir, mode: "copy", saveAs: { dirname ? "$dirname/$fname" : fname } )
+    input:  tuple path(fname), val(dirname)
+    output: path fname
+    script: "echo 'Writing output files'"
+}
+
 
 // ---------------------------------------------------------------------------
 // Named sub-workflows that compose sample_processing with downstream steps
@@ -53,7 +54,7 @@ workflow generate_target_bed {
         // Publish target bed and fasta for MinKNOW adaptive sampling
         panel_prep.out.minknow_bed
             | map { f -> tuple(f, "minknow_input") } 
-            | publish
+            | publish_target_bed
         // panel_prep.out.minknow_fasta
         //     | map { f -> tuple(f, "${params.project_name}/minknow_input") } 
         //     | publish
@@ -82,7 +83,7 @@ workflow get_classifier_input_sample_data {
         // Publish final panel results into params.out_dir/<sample>/
         make_classifier_input.out.panel_results
             | map { f -> tuple(f, "${params.sample}") }
-            | publish
+            | publish_classifier
 
     emit:
         panel_results = make_classifier_input.out.panel_results
@@ -110,12 +111,13 @@ workflow get_patient_report {
         )
 
         // Publish final report into params.out_dir/<sample>/
-        generate_report.out.report
+        generate_report.out.report_md
+            .mix(generate_report.out.report_html)
             | map { f -> tuple(f, "${params.sample}") }
-            | publish
+            | publish_report
 
     emit:
-        report = generate_report.out.report
+        report = generate_report.out.report_html
 }
 
 // ---------------------------------------------------------------------------

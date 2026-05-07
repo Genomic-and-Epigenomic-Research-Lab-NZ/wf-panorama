@@ -160,6 +160,12 @@
                     "description": "A JSON file of key value pairs to display on the report.",
                     "help_text": "This is used to populate a table of additional information to the workflow report.",
                     "hidden": true
+                },
+                "report_title": {
+                    "type": "string",
+                    "title": "Clinical report title",
+                    "description": "Title to display on the generated clinical report.",
+                    "help_text": "Sets the title heading used in the per-sample clinical report generated in `--clinical_mode`. Defaults to the value of `--project_name` if not provided."
                 }
             },
             "allOf": [

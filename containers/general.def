@@ -61,6 +61,7 @@ From: ubuntu:22.04
     echo "=== Installing Python packages ==="
     pip3 install numpy==2.2.2 pandas==2.2.2
     pip3 install cyvcf2==0.31.1
+    pip3 install Jinja2==3.1.2
 
     echo "=== Cleaning up ==="
     apt-get clean

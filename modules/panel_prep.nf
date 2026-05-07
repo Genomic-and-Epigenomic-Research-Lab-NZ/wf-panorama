@@ -190,19 +190,19 @@ workflow panel_prep {
         // def epic_locs  = file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
 
         def ref_fasta = params.reference_genome 
-                        ? file(params.reference_genome) 
+                        ? file("${projectDir}/resources/${params.reference_genome}") 
                         : file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna")
 
         def ref_fai = params.reference_genome_idx 
-                        ? file(params.reference_genome_idx) 
+                        ? file("${projectDir}/resources/${params.reference_genome_idx}") 
                         : file("${projectDir}/resources/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai")
 
         def chrom_sizes_path = params.chrom_sizes_file 
-                                ? file(params.chrom_sizes_file) 
+                                ? file("${projectDir}/resources/${params.chrom_sizes_file}") 
                                 : file("${projectDir}/resources/hg38_no_alt.chrom_sizes")
 
         def epic_locs = params.Illumina_epic_locs 
-                                ? file(params.Illumina_epic_locs) 
+                                ? file("${projectDir}/resources/${params.Illumina_epic_locs}") 
                                 : file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
 
         ref_ch          = Channel.fromPath(ref_fasta.toString(), checkIfExists: true)

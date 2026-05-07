@@ -1,4 +1,4 @@
-# BCG Susceptibility Panel for NMIBC
+# {{repo.report_title}}
 *This test combines the results for relevant single nucleotide variants, methylation variants, and immune infiltrate prediction to reach a final score for prediction of BCG treatment success for NMIBC.*  
 **Panel name** {{repo.panel_name}}<br>
 **URL:** {{repo.url}}

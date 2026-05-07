@@ -12,6 +12,7 @@ process get_scores {
         path immune_res
     output:
         path "${params.sample}.scores.csv", emit: scores
+        path "${params.sample}.scoring.log", emit: scoring_log
     script:
         """
         python3 ${projectDir}/bin/get_scores.py \
@@ -19,7 +20,8 @@ process get_scores {
             --snv ${snv_res} \
             --mod ${mod_res} \
             --immune ${immune_res} \
-            --out ${params.sample}.scores.csv
+            --out ${params.sample}.scores.csv \
+            --log "${params.sample}.scoring.log"
         """
 }
 
@@ -35,14 +37,18 @@ process generate_report {
         path template
         path scores
     output:
-        path "${params.sample}.report.md", emit: report
+        path "${params.sample}.report.md", emit: report_md
+        path "${params.sample}.report.html", emit: report_html
     script:
         """
         python3 ${projectDir}/bin/generate_report.py \
             --panel ${panel_meta} \
             --template ${template} \
             --scores ${scores} \
+            --report_title "${params.report_title}" \
+            --project_name ${params.project_name} \
+            --sample ${params.sample} \
             --out ${params.sample}.report.md \
-            --sample ${params.sample}
+            --log "${params.sample}.report.log"
         """
 }
