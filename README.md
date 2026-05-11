@@ -15,9 +15,9 @@
   - [🥳 Third-party requirements](#-third-party-requirements)
   - [🏁 Install and run](#-install-and-run)
     - [Additional install requirements](#additional-install-requirements)
-    - [Containers](#containers)
-    - [Human Genome Reference](#human-genome-reference)
-    - [Chromosome size file](#chromosome-size-file)
+      - [Containers](#containers)
+      - [Human Genome Reference](#human-genome-reference)
+      - [Chromosome size file](#chromosome-size-file)
     - [Run command](#run-command)
   - [🎈 Usage](#-usage)
     - [General Input Parameters](#general-input-parameters)
@@ -34,7 +34,6 @@
       - [Output directory `<sample name>/wf-humvar-run`](#output-directory-sample-namewf-humvar-run)
       - [Output directory `<sample name>/mod_calling`](#output-directory-sample-namemod_calling)
       - [Output directory `<sample name>/snv_annotation`](#output-directory-sample-namesnv_annotation)
-      - [Output directory `<sample name>/methylCS`](#output-directory-sample-namemethylcs)
       - [Output directory `<sample name>/immune_infiltrate`](#output-directory-sample-nameimmune_infiltrate)
   - [🎯 Biomarker panel input](#-biomarker-panel-input)
   - [✍️ Authors](#️-authors)
@@ -45,7 +44,7 @@
   - [📜 Pipeline History](#-pipeline-history)
   - [🎉 Acknowledgements](#-acknowledgements)
   - [📚 References](#-references)
-  - [AI Assistance](#ai-assistance)
+  - [🤖 AI Assistance](#-ai-assistance)
 
 ## 🧬 Introduction
 
@@ -93,7 +92,7 @@ Please get in contact with us if you are interested in using an alternative immu
 
 ## 🏁 Install and run
 
-<!-- TODO: check if this is doable -->
+<!-- TODO: Integrate with EPI2ME -->
 <!-- You can also access the workflow via the
 [EPI2ME Desktop application](https://labs.epi2me.io/downloads/). -->
 
@@ -114,12 +113,12 @@ It is not required to clone or download the git repository in order to run the w
 Once nextflow is installed, the following command can be used to obtain the workflow. This will pull the repository in to the assets folder of Nextflow and provide a list of all parameters available for the workflow as well as an example command:
 
 ```
-nextflow run lucy924/wf-panorama --help
+nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama --help
 ```
 To update a workflow to the latest version on the command line use
 the following command:
 ```
-nextflow pull lucy924/wf-panorama
+nextflow pull Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama
 ```
 
 <!-- A demo dataset is provided for testing of the workflow.
@@ -131,11 +130,9 @@ tar -xzvf wf-template-demo.tar.gz
 The workflow can then be run with the downloaded demo data using: -->
 
 ### Additional install requirements
-<!-- TODO: Set up Github Actions to get this to work properly -->
-<!-- TODO: update figshare.com link to actual url -->
+<!-- TODO: update figshare.com link to actual url once it's confirmed -->
 
-<!-- BEGIN:external_downloads -->
-### Containers
+#### Containers
 The container components of this tool are very large. These are hosted on [figshare.com](figshare.com):  
 https://figshare.com/account/articles/32165103  
 You will need to download these containers separately in order to use this tool.  
@@ -146,7 +143,7 @@ Containers:
 - methylcibersort.sif (1.8 GB)
 Place these in the directory: `wf-panorama/containers/`  
 
-### Human Genome Reference
+#### Human Genome Reference
 You will need to obtain your preferred human genome and associated index file and put it in the `wf-panorama/resources/` directory.  
 During development the genome build `GCA_000001405.15_GRCh38_no_alt_analysis_set.fna` was used. Any genome build of hg38 should work, though other builds have not been tested.  
 
@@ -170,7 +167,7 @@ samtools faidx ${ref}
 ```
 The index file is required to be pre-built. Ensure that this file is in the `resources` directory.   
 
-### Chromosome size file
+#### Chromosome size file
 A chrom_sizes file is also required. While there is one included in the resources directory, it should be replaced by a fresh file created from the above index file like so:  
 ```sh
 fai="/path/to/<genome.fna.fai>"
@@ -182,15 +179,15 @@ This is then passed to the pipeline using the following parameter:
 --chrom_sizes_file hg38_no_alt.chrom_sizes
 ```
 Ensure that this file is in the `resources` directory. If it is not specified, the pipeline will default to looking for `hg38_no_alt.chrom_sizes` in the `resources` directory.
-<!-- END:external_downloads -->
 
 ### Run command
 
 The workflow can be run using:
-<!-- TODO: fix profile options (epi2me uses "standard") -->
+<!-- TODO: check profile options (epi2me uses "standard") -->
 ```
-nextflow run lucy924/wf-panorama \
-    --project_name Project-BCG_on_NMIBC \
+nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
+    --clin_trial_mode \
+    --project_name Project_Name \
     --sample Test1 \
     --bam_directory /path/to/passed_bams \
     --panel_metadata /path/to/demo_input/panel_metadata.csv \
@@ -214,7 +211,7 @@ the command line see https://labs.epi2me.io/wfquickstart/
 > ```
 > This will conduct the analysis inside this directory. 
 > ```
-> nextflow run lucy924/wf-panorama --help
+> nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama --help
 > ```
 > Note that nextflow will keep things in `/home/<your user name>/.nextflow`
 
@@ -301,13 +298,13 @@ Please note that MethylCIBERSORT reference data it uses to build the bed file is
 | chrom_sizes_file | string | The path to a chrom_sizes file, generated from the index of the reference genome. | Optional. If not provided, the bundled `resources/hg38_no_alt.chrom_sizes` file is used. It is strongly recommended to generate this from the same reference genome you are using for sequencing — see [Chromosome size file](#chromosome-size-file). | `resources/hg38_no_alt.chrom_sizes` (bundled) |  
 
 *Example run command*  
-<!-- TODO: update!!! -->
 ```sh
-nextflow run ../wf-panorama \
+nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
     --make_target_bed \
-    --project_name 20260418-BCG_on_NMIBC \
-    --panel_metadata ../wf-panorama/demo_input/panel_metadata.csv \
+    --project_name Project_Name \
+    --panel_metadata /path/to/demo_input/panel_metadata.csv \
     --mCS_cancer_type bladder \
+    --chrom_sizes_file hg38_no_alt.chrom_sizes \
     -profile slurm,singularity \
     -resume
 ```
@@ -338,14 +335,13 @@ Expected runtime: < 5 min
 <!-- | sample_sheet | string | A CSV file used to map barcodes to sample aliases. The sample sheet can be provided when the input data is a folder containing sub-folders with FASTQ files. | The sample sheet is a CSV file with, minimally, columns named `barcode` and `alias`. Extra columns are allowed. A `type` column is required for certain workflows and should have the following values; `test_sample`, `positive_control`, `negative_control`, `no_template_control`. An optional `analysis_group` column is used by some workflows to combine the results of multiple samples. If the `analysis_group` column is present, it needs to contain a value for each sample. |  | -->
 
 *Example run command*  
-<!-- TODO: update!!! -->
 ```sh
-nextflow run ../wf-panorama \
+nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
     --clin_trial_mode \
-    --project_name 20260418-BCG_on_NMIBC \
+    --project_name Project_Name \
     --sample Test1 \
     --bam_directory /path/to/bam_pass/ \
-    --panel_metadata ../wf-panorama/demo_input/panel_metadata.csv \
+    --panel_metadata /path/to/demo_input/panel_metadata.csv \
     --meth_coverage_threshold 5 \
     --cibersortx_username person@place.com \
     --cibersortx_token 12a3bc  \
@@ -369,15 +365,14 @@ nextflow run ../wf-panorama \
 <!-- | watch_path | boolean | Enable to continuously watch the input directory for new input files. | This option enables the use of Nextflow's directory watching feature to constantly monitor input directories for new files. | False | -->
 
 *Example run command*  
-<!-- TODO: update!!! -->
 ```sh
-nextflow run ../wf-panorama \
+nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
     --clinical_mode \
-    --project_name 20260418-BCG_on_NMIBC \
+    --project_name Project_Name \
     --report_title "BCG on NMIBC – Patient Report" \
     --sample Test1 \
     --bam_directory /path/to/bam_pass/ \
-    --panel_metadata ../wf-panorama/demo_input/panel_metadata.csv \
+    --panel_metadata Genomic-and-Epigenomic-Research-Lab-NZ/demo_input/panel_metadata.csv \
     --meth_coverage_threshold 5 \
     --cibersortx_username person@place.com \
     --cibersortx_token 12a3bc  \
@@ -440,15 +435,17 @@ Along with nextflow-generated directories (that can be removed when finished to 
 - sample.snv_results.csv
 
 <!-- #### Output directory `<sample name>/sv_annotation`
-This module is not yet implemetned, there is currently an empty placeholder output -->
-#### Output directory `<sample name>/methylCS`
-<!-- TODO: put this output in immune infiltrate -->
+This module is not yet implemented, there is currently an empty placeholder output -->
+
+
+<!-- #### Output directory `<sample name>/methylCS` -->
+
+#### Output directory `<sample name>/immune_infiltrate`
+<!-- TODO: Check this output goes to immune infiltrate -->
 
 - CIBERSORTx_sample_Results.csv
 - sample.CS_mix_matrix.txt
 - sample.bladder.mCS_ref.txt
-
-#### Output directory `<sample name>/immune_infiltrate`
 - sample.immune_panel_results.csv
 
 
@@ -534,13 +531,13 @@ Please note the intent of this project is to actively encourage clinical researc
 
 This workflow is designed to take input sequences that have been produced from [Oxford Nanopore Technologies](https://nanoporetech.com/) devices.  
 This protocol currently uses [epi2me-labs/wf-human-variation v2.6.0](https://github.com/epi2me-labs/wf-human-variation/releases/tag/v2.6.0) for initial analysis of bam files.  
-<!-- TODO: update to more recent version, investigate using wf-somatic-variation instead -->
 
 
 ## 🗺️ Roadmap
 - [ ]  Add multiple treatment options
 - [ ]  Integrate with Epi2ME Labs
 - [ ]  Add option for custom immune infiltrate references
+<!-- [ ] update to more recent version of wf-human-variation, investigate using wf-somatic-variation instead -->
 
 ## 📜 Pipeline History
 
@@ -561,7 +558,7 @@ Many thanks go to the funders of this project, The Barbara Basham Medical Charit
   - Stephane Plaisance (VIB-NC) 2021
   - https://github.com/Nucleomics-VIB
 
-## AI Assistance
+## 🤖 AI Assistance
 
 Development of this project used AI-assisted coding tools:
 - GitHub Copilot (VS Code extension)

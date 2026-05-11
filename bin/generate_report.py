@@ -34,7 +34,7 @@ def main(args):
         "report_title": args.report_title,
         "sample_name": args.sample,
         "panel_name": args.project_name,
-        "url": "https://github.com/lucy924/wf-panorama",  # TODO: update this to the actual repo url when we have it
+        "url": "https://github.com/Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama"
     }
 
     all_data_lists = list()

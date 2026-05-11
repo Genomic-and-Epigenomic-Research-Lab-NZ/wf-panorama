@@ -38,14 +38,28 @@ CHROM_LENGTHS = {
     "chrM": 16569
 }
 
-BIOMARKER_TYPE_FULL = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)"  # TODO: changed from VARIANT_TYPE, may have broken things. Also this will need updating if we add more types to the panel data. 
-VARIANT_TYPE = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)"  # TODO: changed from VARIANT_TYPE, may have broken things. Also this will need updating if we add more types to the panel data. 
+
+def get_BM_TYPE_FULL(path2panel="../demo_input/panel_metadata.csv"):
+    """
+    Ensures we always get the updated list that is provided to the user
+    """
+    with open(path2panel, "r") as f:
+        header = f.readline()
+    return header.split('"')[1]
+
+# BIOMARKER_TYPE_FULL = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)"
+# VARIANT_TYPE = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)" 
+
+BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL()
+# VARIANT_TYPE = get_BM_TYPE_FULL()  # TODO: run without this enabled to make sure it doesn't break anything.
+
 BIOMARKER_ID = "ID"
 BIOMARKER_NAME = "Biomarker name"
 BIOMARKER_TYPE = "Biomarker Type"
 SCORING_TYPE = "Scoring Type"
 RESULT_OPTIONS = "Result Options"
 RESULT = "Result"
+
 
 preclin_stage_panel_result_header = [BIOMARKER_ID, BIOMARKER_NAME, SCORING_TYPE, BIOMARKER_TYPE, RESULT_OPTIONS, RESULT]
 

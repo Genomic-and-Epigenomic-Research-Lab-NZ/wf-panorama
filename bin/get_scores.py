@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 
+###################################################################################################
+
+# This whole section is probably unnecessarily complicated.  
+# Machine learning will output a single classifier image, not individual scores.  
+# It's here for now but will need to be fixed appropriately once someone does a clinical trial.
+
+###################################################################################################
+
 import os
 import sys
 import argparse
@@ -31,7 +39,7 @@ def match_genotype(allele1, allele2, vals, hrsd_vals, scored):
 def calculate_score(control_val, result_val, std_dev, HRSD_val, response):
     
     if response:
-        # TODO: this needs an expert pair of eyes on it
+        # TODO: this needs an expert pair of eyes on it if we keep this type of calculation
         # Calculations between 0 - 1 - [2 and up] for hazard ratio means I don't know how best to calculate this for going down om score. Probably depends on actual results from the classifier too.
         # find the deviation away from 1, don't use the actual value
         HRSD_val = (1 - HRSD_val)

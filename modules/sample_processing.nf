@@ -109,7 +109,7 @@ process run_methylCS {
     memory '8 GB'
     time '1h'
     container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sif"
-    publishDir "${params.out_dir}/${params.sample}/methylCS", mode: 'copy'
+    publishDir "${params.out_dir}/${params.sample}/immune_infiltrate", mode: 'copy'
     
     input:
         path beta
@@ -132,13 +132,14 @@ process run_CIBERSORTX {
     memory '8 GB'
     time '2h'
     container 'docker://cibersortx/fractions'
-    publishDir "${params.out_dir}/${params.sample}/methylCS", mode: 'copy', saveAs: { f -> file(f).name }
+    publishDir "${params.out_dir}/${params.sample}/immune_infiltrate", mode: 'copy', saveAs: { f -> file(f).name }
     input:
         path mixture
         path sigmatrix
         val username
         val token
         val sample_name
+        val permutations
     output:
         path "outdir/CIBERSORTx_${params.sample}_Results.csv", emit: cibersortx_out
     script:
@@ -149,7 +150,7 @@ process run_CIBERSORTX {
             --mixture ${mixture.getName()} \
             --sigmatrix ${sigmatrix.getName()} \
             --label ${sample_name} \
-            --perm 1 \
+            --perm ${permutations} \
             --QN FALSE \
             --verbose TRUE
         """
@@ -332,7 +333,7 @@ workflow sample_processing {
         if (params.skip_cibersortx) {
             // Use a pre-existing results file from the output directory (e.g. when token is expired)
             cibersortx_out_ch = Channel.fromPath(
-                "${params.out_dir}/${params.sample}/methylCS/CIBERSORTx_${params.sample}_Results.csv",
+                "${params.out_dir}/${params.sample}/immune_infiltrate/CIBERSORTx_${params.sample}_Results.csv",
                 checkIfExists: true
             )
         } else {
@@ -341,7 +342,8 @@ workflow sample_processing {
                 run_methylCS.out.cs_ref,
                 Channel.of(params.cibersortx_username),
                 Channel.of(params.cibersortx_token),
-                sample_name_ch
+                sample_name_ch,
+                Channel.of(params.cibersortx_permutations)
             )
             cibersortx_out_ch = run_CIBERSORTX.out.cibersortx_out
         }

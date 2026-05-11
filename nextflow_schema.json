@@ -337,7 +337,13 @@
                 "r_methyl_container": {
                     "type": "string",
                     "description": "Path or URI to the R methylation/CIBERSORTx container image.",
-                    "help_text": "If null, falls back to containers/methylcibersort.sandbox.",
+                    "help_text": "If null, falls back to containers/methylcibersort.sif.",
+                    "hidden": true
+                },
+                "cibersortx_permutations": {
+                    "type": "integer",
+                    "description": "CIBERSORTx number of permutations for significance analysis.",
+                    "help_text": "See https://cibersortx.stanford.edu/tutorial.php for more information. You may have to login.",
                     "hidden": true
                 }
             }
