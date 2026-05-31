@@ -39,7 +39,7 @@ CHROM_LENGTHS = {
 }
 
 
-def get_BM_TYPE_FULL(path2panel="../demo_input/panel_metadata.csv"):
+def get_BM_TYPE_FULL(path2panel):
     """
     Ensures we always get the updated list that is provided to the user
     """
@@ -47,10 +47,14 @@ def get_BM_TYPE_FULL(path2panel="../demo_input/panel_metadata.csv"):
         header = f.readline()
     return header.split('"')[1]
 
+def get_VARIANT_TYPES(BM_TYPE_FULL):
+    return BM_TYPE_FULL.split('(')[1].split(')')[0].split(', ')
+
 # BIOMARKER_TYPE_FULL = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)"
 # VARIANT_TYPE = "Biomarker Type (snv, sv, mod, area_mutations, expression, exp_ratio, immune_ratio, immune_inf, microsatellite, demographic, clinicopathology)" 
 
-BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL()
+# BIOMARKER_TYPE_FULL is no longer set at module level.
+# Each script that needs it should call: BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL(path2panel=args.panel)
 # VARIANT_TYPE = get_BM_TYPE_FULL()  # TODO: run without this enabled to make sure it doesn't break anything.
 
 BIOMARKER_ID = "ID"
@@ -66,11 +70,11 @@ preclin_stage_panel_result_header = [BIOMARKER_ID, BIOMARKER_NAME, SCORING_TYPE,
 variant_dict_columns_to_add = ['ClinVar', 'Significance (ClinVar)', 'Consequence (Clinvar)', 'Reference Allele', 'Variant Allele', 'Genotype', 'HGVS.c', 'HGVS.p', 'SV Length', 'SV Type']
 
 
-def filter_to_variant_type(panel_metadata_df, variant_type):
-    variant_types = ["snv", "sv", "mod", "area_mutations", "expression", "exp_ratio", "immune_ratio", "immune_inf", "microsatellite", "demographic", "clinicopathology"]
-    if variant_type not in variant_types:
-        raise ValueError("variant_type must be one of: " + ",".join(variant_types))
-    panel_metadata_df = panel_metadata_df[(panel_metadata_df[VARIANT_TYPE] == variant_type)]
+def filter_to_variant_type(panel_metadata_df, variant_type, BM_TYPE_FULL):
+    VARIANT_TYPES = get_VARIANT_TYPES(BM_TYPE_FULL)
+    if variant_type not in VARIANT_TYPES:
+        raise ValueError("variant_type must be one of: " + ",".join(VARIANT_TYPES))
+    panel_metadata_df = panel_metadata_df[(panel_metadata_df[BM_TYPE_FULL] == variant_type)]
     return panel_metadata_df
 
 
@@ -84,7 +88,8 @@ def variant_prep(path2_variants_metadata_csv, variant_type):
         variants_metadata_df = pd.read_csv(fpc, dtype={"ID": str})
     columns_to_drop = variants_metadata_df.filter(like="Unnamed").columns
     variants_metadata_df.drop(columns=columns_to_drop, inplace=True)
-    variants_metadata_df_v = filter_to_variant_type(variants_metadata_df, variant_type=variant_type)
+    BM_TYPE_FULL = get_BM_TYPE_FULL(path2panel=path2_variants_metadata_csv)
+    variants_metadata_df_v = filter_to_variant_type(variants_metadata_df, variant_type=variant_type, BM_TYPE_FULL=BM_TYPE_FULL)
     variants_metadata_df_v = reduce_metadata_df(variants_metadata_df_v)
     return variants_metadata_df_v
 

@@ -14,7 +14,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from numpy import float64
-from shared_functions import BIOMARKER_ID, BIOMARKER_TYPE, BIOMARKER_TYPE_FULL
+from shared_functions import BIOMARKER_ID, BIOMARKER_TYPE, get_BM_TYPE_FULL
 
 def match_genotype(allele1, allele2, vals, hrsd_vals, scored):
     # THERE MAY BE MULTIPLE OPTIONS
@@ -241,6 +241,8 @@ def get_min_max_scores(panel_entry):
 
 def main(args):
     
+    BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL(path2panel=args.panel)
+
     panel_df = pd.read_csv(args.panel, dtype={"ID": str})
     snv_df = pd.read_csv(args.snv, dtype={"ID": str})
     mod_df = pd.read_csv(args.mod, dtype={"ID": str})

@@ -144,10 +144,10 @@ workflow {
 
     // Validate mode-specific required params
     def validateSampleProcessingParams = { mode ->
-        if (!params.sample)             error "Please provide --sample <sample_name> when using --${mode}"
-        if (!params.bam_directory)      error "Please provide --bam_directory <path_to_bam_folder> when using --${mode}"
+        if (!params.sample)              error "Please provide --sample <sample_name> when using --${mode}"
+        if (!params.bam_directory)       error "Please provide --bam_directory <path_to_bam_folder> when using --${mode}"
         if (!params.cibersortx_username) error "Please provide --cibersortx_username <username> when using --${mode}"
-        if (!params.cibersortx_token)   error "Please provide --cibersortx_token <token> when using --${mode}"
+        if (!params.cibersortx_token)    error "Please provide --cibersortx_token <token> when using --${mode}"
     }
 
     if (params.make_target_bed) {

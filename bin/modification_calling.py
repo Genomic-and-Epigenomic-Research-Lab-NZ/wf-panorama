@@ -2,13 +2,13 @@
 import argparse
 import pandas as pd
 import os
-from shared_functions import VARIANT_TYPE, CHROMOSOMES, preclin_stage_panel_result_header, variant_prep, BIOMARKER_NAME, RESULT_OPTIONS, SCORING_TYPE
+from shared_functions import preclin_stage_panel_result_header, variant_prep
 
 # Note: this is a conversion of the original modification_calling.py adapted to CLI usage.
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--panel', required=True)
-parser.add_argument('--post', required=True)
+parser.add_argument('--mod_data', required=True)
 parser.add_argument('--out-meth', required=True)
 parser.add_argument('--out-mod', required=True)
 parser.add_argument('--out-raw', required=True)
@@ -67,7 +67,7 @@ def add_downstream_start_end(panel_metadata_df_meth):
 
 
 # Load inputs
-with open(args.post, 'r') as fp:
+with open(args.mod_data, 'r') as fp:
     dss_df = pd.read_csv(fp, sep=',', dtype={'probe': str, 'strand': str})
 
 # Export for methatlas

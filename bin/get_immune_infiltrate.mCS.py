@@ -3,7 +3,7 @@ import argparse
 import sys
 import pandas as pd
 import numpy as np
-from shared_functions import variant_prep, BIOMARKER_ID, BIOMARKER_NAME, BIOMARKER_TYPE, BIOMARKER_TYPE_FULL, SCORING_TYPE, RESULT_OPTIONS, preclin_stage_panel_result_header
+from shared_functions import variant_prep, BIOMARKER_ID, BIOMARKER_NAME, BIOMARKER_TYPE, get_BM_TYPE_FULL, SCORING_TYPE, RESULT_OPTIONS, preclin_stage_panel_result_header
 
 lymphocytes = ["CD19", "CD4_Eff",
                 "CD56", "CD8", "Treg", ]
@@ -71,6 +71,8 @@ parser.add_argument('--deconv', required=True)
 parser.add_argument('--out', required=True)
 parser.add_argument('--panel', required=True)
 args = parser.parse_args()
+
+BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL(path2panel=args.panel)
 
 deconv_df = pd.read_csv(args.deconv, sep=',')  # TODO check once CS is up
 

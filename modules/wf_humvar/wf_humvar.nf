@@ -45,6 +45,7 @@ process RUN_WF_HUMVAR {
     // ======== WARNING ========
     // storeDir won't re-run if inputs change but outputs already exist
     // This is a deliberate tradeoff with storeDir — it skips the process purely based on output existence, not input hashes. This process is long, therefore this is intentional. If you change --bed, --bam, etc., the cached wf-humvar directory will still be used.
+    // The output existence must be the directory: ${SAMPLE}/.nextflow_cache/.
     // =========================
 
     input:

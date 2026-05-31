@@ -88,7 +88,7 @@ process modification_calling {
     publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
     input:
         path panel_meta
-        path post
+        path post_betas
     output:
         path "${params.sample}.methatlas.csv",      emit: methatlas
         path "${params.sample}.mod_results.csv",     emit: mod_results
@@ -96,7 +96,7 @@ process modification_calling {
     script:
         """
         python3 ${projectDir}/bin/modification_calling.py \
-            --panel ${panel_meta} --post ${post} \
+            --panel ${panel_meta} --mod_data ${post_betas} \
             --out-meth ${params.sample}.methatlas.csv \
             --out-mod  ${params.sample}.mod_results.csv \
             --out-raw  ${params.sample}.rawmod_results.csv
@@ -129,9 +129,10 @@ process run_methylCS {
 process run_CIBERSORTX {
     tag "run_CIBERSORTX.${params.sample}"
     cpus 1
-    memory '8 GB'
+    memory '32 GB'
     time '2h'
-    container 'docker://cibersortx/fractions'
+    container "file://${projectDir}/containers/cibersortx_fractions.sif"
+    containerOptions "--bind \${PWD}:/src/data --bind \${PWD}:/src/outdir"
     publishDir "${params.out_dir}/${params.sample}/immune_infiltrate", mode: 'copy', saveAs: { f -> file(f).name }
     input:
         path mixture
@@ -141,17 +142,17 @@ process run_CIBERSORTX {
         val sample_name
         val permutations
     output:
-        path "outdir/CIBERSORTx_${params.sample}_Results.csv", emit: cibersortx_out
+        path "CIBERSORTx_${params.sample}_Results.csv", emit: cibersortx_out
     script:
         """
-        cibersortx_fractions \
-            --username ${username} \
-            --token ${token} \
-            --mixture ${mixture.getName()} \
-            --sigmatrix ${sigmatrix.getName()} \
-            --label ${sample_name} \
-            --perm ${permutations} \
-            --QN FALSE \
+        /src/CIBERSORTxFractions \\
+            --username ${username} \\
+            --token ${token} \\
+            --mixture ${mixture.getName()} \\
+            --sigmatrix ${sigmatrix.getName()} \\
+            --label ${sample_name} \\
+            --perm ${permutations} \\
+            --QN FALSE \\
             --verbose TRUE
         """
 }

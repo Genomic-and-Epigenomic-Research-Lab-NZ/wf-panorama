@@ -1,5 +1,8 @@
 #!/usr/bin/env Rscript
 
+
+library(MethylCIBERSORT)
+
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 4) stop("Usage: methylcibersort.R <input_beta_matrix> <mixture_matrix_name> <base_sig_matrix_filename> <sample_name> [cancer_type]")
 
@@ -9,6 +12,10 @@ base_sig_matrix_filename <- args[3]
 sample_name <- args[4]
 cancer_type <- args[5]
 
+# data("StromalMatrix_V2")
+# table(Stromal_v2.pheno)
+
+# input_beta_matrix <- "Test2.methatlas.csv"
 # helper to read CSV/TSV
 read_input <- function(path) {
     tryCatch(read.csv(path, stringsAsFactors = FALSE, check.names = FALSE),
@@ -39,8 +46,9 @@ beta_df <- read_input(input_beta_matrix)
 # } else {
 #     stop("Unrecognised beta matrix format")
 # }
-
+# sample_name <- 'Test2'
 rownames(beta_df) <- beta_df$probe
+# head(beta_df)
 beta_df$probe <- NULL
 colnames(beta_df) <- sample_name
 beta_df <- as.matrix(beta_df)
@@ -58,11 +66,12 @@ beta_df <- as.matrix(beta_df)
 #     have_mc <- requireNamespace("MethylCIBERSORT", quietly = TRUE)
 # }))
 
-library(MethylCIBERSORT)
 
 cat("MethylCIBERSORT available; preparing signature and mixture using package functions\n")
+
 # load signatures
 data("V2_Signatures")
+# cancer_type <- 'bladder'
 sig_key <- paste0(cancer_type, "_v2_Signature.txt")
 cat("Using cancer type signature:", sig_key, "\n")
 if (!sig_key %in% names(Signatures)) {
@@ -72,6 +81,18 @@ if (!sig_key %in% names(Signatures)) {
     ))
 }
 base_sig_matrix <- Signatures[[sig_key]]
+dim(base_sig_matrix)
+head(base_sig_matrix)
+
+# Try the ref from methatlas
+# methatlas_sig_matrix <- read_input('/projects/uow/GERL/dejlu879/Panorama/nanopore_multiBM_pipeline/resources/ref_atlas_bladder.csv')
+# dim(methatlas_sig_matrix)
+# head(methatlas_sig_matrix)
+
+# adjust colnames to match the methylcibersort reference
+colnames(methatlas_sig_matrix) <- gsub("CpGs", "NAME", colnames(methatlas_sig_matrix))
+colnames(methatlas_sig_matrix) <- gsub("Bladder", "Cancer", colnames(methatlas_sig_matrix))
+# colnames(methatlas_sig_matrix) <- gsub(sig_key, "Cancer", colnames(methatlas_sig_matrix))
 
 # Export signature to file
 cat("Writing minimal signature to: ", base_sig_matrix_filename, "\n")
@@ -80,6 +101,12 @@ write.table(
     file = base_sig_matrix_filename,
     sep = "\t", row.names = FALSE, quote = FALSE
 )
+# base_sig_matrix_filename <- "Test2.bladder.mCS_ref.txt"
+# write.table(
+#     methatlas_sig_matrix,
+#     file = base_sig_matrix_filename,
+#     sep = "\t", row.names = FALSE, quote = FALSE
+# )
 
 # # Try to get signature object from package (best-effort)
 # sig_out <- base_sig_matrix_file
@@ -97,6 +124,8 @@ write.table(
 # load("/home/dejlu879/ProjectProtocol/bm_pipeline_dev/resources/mat.RData")
 
 cat("Calling Prep.CancerType to prepare mixture files\n")
+# mixture_matrix_name <- 'Test2.CS_mix_matrix'
+    # Probes = methatlas_sig_matrix$NAME,
 Prep.CancerType(
     Beta = beta_df,
     Probes = base_sig_matrix$NAME,

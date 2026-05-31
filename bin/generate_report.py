@@ -5,11 +5,13 @@ from jinja2 import Template
 import codecs
 import pandas as pd
 import markdown
-from shared_functions import BIOMARKER_ID, BIOMARKER_NAME, BIOMARKER_TYPE_FULL, BIOMARKER_TYPE, RESULT_OPTIONS, RESULT
+from shared_functions import BIOMARKER_ID, BIOMARKER_NAME, get_BM_TYPE_FULL, BIOMARKER_TYPE, RESULT_OPTIONS, RESULT
 
 
 def main(args):
     
+    BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL(path2panel=args.panel)
+
     # log = open(args.log, 'w')
     
     # create a dict with all data that will populate the template

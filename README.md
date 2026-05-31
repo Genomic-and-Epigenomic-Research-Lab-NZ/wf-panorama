@@ -19,6 +19,7 @@
       - [Human Genome Reference](#human-genome-reference)
       - [Chromosome size file](#chromosome-size-file)
     - [Run command](#run-command)
+      - [Nextflow Profiles](#nextflow-profiles)
   - [🎈 Usage](#-usage)
     - [General Input Parameters](#general-input-parameters)
       - [Tissue type options](#tissue-type-options)
@@ -55,6 +56,7 @@ Panorama is built using the Nextflow workflow language and is intended to be use
 Panorama is intended for use as follows:  
 
 ### Stage One: In a Pre-Clinical Trial for a defined disease and single* treatment option 📋
+
    1. Biomarkers are input via a csv file, as detailed in the section [Biomarker panel input](#biomarker-panel-input) below. This will form the basis of the bed file used for adaptive sampling, and is also used for downstream pipeline processes. Biomarkers can include SNVs, methylation markers, and certain immune infiltrate markers as determined by immune deconvolution using methylation markers.
    2. Tumour samples are nanopore sequenced using adaptive sampling and a bed file containing the target regions required for biomarker analysis. This bed file is produced by this pipeline with the flag `--make_target_bed` and the biomarker csv file using the input parameter `--panel_metadata`. Resulting bam files are used as input to Panorama. Bam files must be basecalled using modified base calling (5mC+5hmC contexts), and aligned to the hg38 genome.
    3. Using the flag `--clin_trial_mode` the pipeline will output sample data as a csv file corresponding to the input biomarkers.
@@ -63,9 +65,10 @@ Panorama is intended for use as follows:
 **Multiple treatment options will be available in a future update*
 
 ### Stage Two: Patient sample reporting following a successful clinical trial 💊
+
    1. Using the results of the pre-clinical trial described above, and the final version of the biomarker input with classifier results, a single patient sample can be submitted to this pipeline as before, and will output a report based on the clinical trial results.  
    2. The pipeline can be run for a clinical sample using the flag `--clinical_mode`.
-   
+
 Please note that Stage Two has not been fully tested as there has been no such clinical trial carried out yet. This is expected to be finalised during/after an actual clinical trial. Please get in contact with the developers if you decide to use this tool in a clinical trial and we will assist/collaborate with trial design and clinical reporting development.
 <!-- eg read depth requirements -->
 
@@ -73,19 +76,19 @@ Please note that Stage Two has not been fully tested as there has been no such c
 
 Recommended requirements:
 
-+ CPUs = 32
-+ Memory = 128GB
+- CPUs = 32
+- Memory = 128GB
 
 Minimum requirements:
 
-+ CPUs = 16
-+ Memory = 32GB
+- CPUs = 16
+- Memory = 32GB
 
 *Based off [wf-human-variation](https://github.com/epi2me-labs/wf-human-variation) as this is the most computationally heavy component of the workflow.*
 
 ## 🥳 Third-party requirements
 
-This program uses MethylCIBERSORT and CIBERSORTx for immune infiltrate deconvolution. CIBERSORTx is provided as a Docker container by the developers, the Alizadeh and Newman labs at https://cibersortx.stanford.edu/. You will need to create an account and obtain the Docker token through the "Downloads" page. You do not need to install the container yourself, Panorama will handle that for you. You only need to provide your CIBERSORTx username (email) and token to Panorama for it to run. Please note it will take a few days for the CIBERSORTx developers to process your access request.  
+This program uses MethylCIBERSORT and CIBERSORTx for immune infiltrate deconvolution. CIBERSORTx is provided as a Docker container by the developers, the Alizadeh and Newman labs at <https://cibersortx.stanford.edu/>. You will need to create an account and obtain the Docker token through the "Downloads" page. You do not need to install the container yourself, Panorama will handle that for you. You only need to provide your CIBERSORTx username (email) and token to Panorama for it to run. Please note it will take a few days for the CIBERSORTx developers to process your access request.  
 Please follow all requirements required by the CIBERSORTx developers as stated when you register. Use of Panorama does not override the CIBERSORTx rules and requirements.  
 
 Please get in contact with us if you are interested in using an alternative immune deconvolution package.  
@@ -101,9 +104,8 @@ compute and software resources,
 therefore Nextflow will need to be
 installed before attempting to run the workflow.
 
-The workflow can currently be run using [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/index.html).
-<!-- This is automated provided Singularity is installed.
-This is controlled by the
+The workflow can be run using [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/index.html), [Apptainer](https://apptainer.org/) (the open-source fork of Singularity, common on newer HPC systems), or [Docker](https://www.docker.com/).
+<!-- This is controlled by the
 [`-profile`](https://www.nextflow.io/docs/latest/config.html#config-profiles)
 parameter as exemplified below. -->
 
@@ -115,8 +117,10 @@ Once nextflow is installed, the following command can be used to obtain the work
 ```
 nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama --help
 ```
+
 To update a workflow to the latest version on the command line use
 the following command:
+
 ```
 nextflow pull Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama
 ```
@@ -133,58 +137,71 @@ The workflow can then be run with the downloaded demo data using: -->
 <!-- TODO: update figshare.com link to actual url once it's confirmed -->
 
 #### Containers
+
 The container components of this tool are very large. These are hosted on [figshare.com](figshare.com):  
-https://figshare.com/account/articles/32165103  
+<https://figshare.com/account/articles/32165103>  
 You will need to download these containers separately in order to use this tool.  
 On the plus side, you shouldn't need to download or set up any other packages!
 
 Containers:  
+
 - general.sif (0.4 GB)
 - methylcibersort.sif (1.8 GB)
+- cibersortx_fractions.sif (0.3 GB)
 Place these in the directory: `wf-panorama/containers/`  
 
 #### Human Genome Reference
+
 You will need to obtain your preferred human genome and associated index file and put it in the `wf-panorama/resources/` directory.  
 During development the genome build `GCA_000001405.15_GRCh38_no_alt_analysis_set.fna` was used. Any genome build of hg38 should work, though other builds have not been tested.  
 
 > [!TIP]
 > You should be able to use a symlink (aka symbolic link, alias, shortcut) to avoid having multiple copies of the human genome scattered around your system. To add a symlink:  
-> ```
+>
+> ```sh
 > ln -s /path/to/<genome.fna> /path/to/wf-panorama/resources/.
 > ln -s /path/to/<genome.fna.fai> /path/to/wf-panorama/resources/.
 > ```
+>
 > Please note symlinks haven't been tested in this workflow yet. If there are mysterious errors try copying the genome to this location instead. Please let us know if you use symlinking wth the workflow and it works!
 
-> [!WARNING] 
+> [!WARNING]
 > Methylation sites have been identified by their Illumina array probe names, and mapped to hg38 genome locations. Unless you rebuild all the files in this workflow that use genome locations, using the T2T genome build will NOT work and/or will give wrong results!
 
 To generate the genome index file using samtools (recommended):  
+
 ```sh
 cd wf-panorama/resources
 ref="GCA_000001405.15_GRCh38_no_alt_analysis_set.fna"  # or your reference file
 samtools faidx ${ref}
 # this creates a file called "GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai"
 ```
-The index file is required to be pre-built. Ensure that this file is in the `resources` directory.   
+
+The index file is required to be pre-built. Ensure that this file is in the `resources` directory.
 
 #### Chromosome size file
+
 A chrom_sizes file is also required. While there is one included in the resources directory, it should be replaced by a fresh file created from the above index file like so:  
+
 ```sh
 fai="/path/to/<genome.fna.fai>"
 cd wf-panorama/resources
 cut -f1,2 ${fai} > hg38_no_alt.chrom_sizes
 ```
+
 This is then passed to the pipeline using the following parameter:  
-```
+
+```sh
 --chrom_sizes_file hg38_no_alt.chrom_sizes
 ```
+
 Ensure that this file is in the `resources` directory. If it is not specified, the pipeline will default to looking for `hg38_no_alt.chrom_sizes` in the `resources` directory.
 
 ### Run command
 
 The workflow can be run using:
 <!-- TODO: check profile options (epi2me uses "standard") -->
-```
+```sh
 nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
     --clin_trial_mode \
     --project_name Project_Name \
@@ -200,29 +217,59 @@ nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
 ```
 
 For further information about running a workflow on
-the command line see https://labs.epi2me.io/wfquickstart/
+the command line see <https://labs.epi2me.io/wfquickstart/>
 
-> [!Tip] 
+> [!Tip]
 > If you are new to command line:  
-> Install Nextflow (https://docs.seqera.io/nextflow/#get-started). Once you have done that, come back here. Note that if you are on a cluster compute you may already have nextflow installed and just need to load it with something like `module load nextflow`.
+> Install Nextflow (<https://docs.seqera.io/nextflow/#get-started>). Once you have done that, come back here. Note that if you are on a cluster compute you may already have nextflow installed and just need to load it with something like `module load nextflow`.
 > "Change directory" (`cd`) to a directory (another name for "folder") where you want to do your analysis.  
-> ```
+>
+> ```sh
 > cd /home/<your user name>/projects/run_panorama
 > ```
-> This will conduct the analysis inside this directory. 
-> ```
+>
+> This will conduct the analysis inside this directory.
+>
+> ```sh
 > nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama --help
 > ```
+>
 > Note that nextflow will keep things in `/home/<your user name>/.nextflow`
 
+#### Nextflow Profiles
+
+Profiles are selected with the `-profile` flag on the command line. Combine an **executor** profile with a **container** profile using a comma (e.g. `-profile slurm,singularity`).
+
+| Executor profile | Description |
+| ---------------- | ----------- |
+| *(none / standard)* | Local execution with Docker |
+| `local` | Explicit local execution, no container required |
+| `slurm` | SLURM HPC cluster |
+| `lsf` | LSF HPC cluster |
+| `pbs` | PBS/Torque HPC cluster |
+| `test` | Local execution with minimal parameters for install verification |
+
+| Container profile | Description |
+| ----------------- | ----------- |
+| *(none / standard)* | Docker |
+| `singularity` | Singularity (traditional HPC) |
+| `apptainer` | Apptainer (newer HPC systems, open-source Singularity fork) |
+| `conda` | Conda (limited support — not all processes are conda-compatible) |
+
+> [!TIP]
+> On HPC systems, use `--singularity_cache /path/to/shared/cache` to point to a shared container cache directory and avoid re-downloading containers for each user.
+
+Resource limits can be adjusted with `--max_memory`, `--max_cpus`, and `--max_time` to match your system's available resources.
 
 ## 🎈 Usage
+
 There are three modes of operation, selected by the following flags:  
+
 1. `--make_target_bed` - This uses the input biomarker panel to create a bed file with buffer regions, suitable for MinKNOW adaptive sampling. This is different to ONT's "Bed Bugs" tool as it adds the necessary regions for immune infiltrate calculation specific to this tool. You are welcome to double check the output with ONT's tool, accessible [here](https://epi2me.nanoporetech.com/bed-bugs/)
 2. `--clin_trial_mode` - This runs sequence data processing, using input bam files, for a single sample. It generates output suitable for classifer training.
 3. `--clinical_mode` - This runs sequence data processing using input bam files and a classifier, presumably generated during the above clinical trial. The input biomarker panel must ensure all targets the classifier needs. and these must be captured by adaptive sampling.  
 
-> [!IMPORTANT]   
+> [!IMPORTANT]
 > A biomarker metadata csv file is required for all three modes of operation. See section [Biomarker panel input](#biomarker-panel-input) for details.
 
 ### General Input Parameters
@@ -239,6 +286,7 @@ There are three modes of operation, selected by the following flags:
 | mCS_cancer_type | string | The cancer/tissue type of the project. | Required. See [Tissue type options](#tissue-type-options). | `bladder` |  
 
 #### Tissue type options
+
 The MethylCIBERSORT process has a specific set of genomic locations it uses to generate reference data for deconvolution. Pick the most appropriate one for your project, and input exactly as below into `--mCS_cancer_type`.  
 
     "acute_myeloid_leukaemia"
@@ -281,23 +329,26 @@ The MethylCIBERSORT process has a specific set of genomic locations it uses to g
     "T_cell_leukemia"
     "thyroid"
 
-
 ### General Output Parameters
+
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | out_dir | string | Directory for output of all workflow results. |  | <project_name> |
 
 ### Mode `make_target_bed`
+
 This mode has two outputs, for use in MinKNOW adaptive sampling. You must use this mode to generate your adaptive sampling bed file, as it combines your specific targets with regions identified for immune deconvolution by methylation. If your bed file does not contain these regions then the tool will not be able to perform immune deconvolution.  
 This mode may need to be rerun multiple times in order to create an optimal bed file that covers all regions adequately while also covering a suitable percentage of the genome. It will check if the resulting bed file meets all the requirements by using the `min_genome_coverage`, `max_genome_coverage` and `buffersize_bp` parameters. If the initial check fails, (it will tell you on the terminal) and/or you want different thresholds for these parameters, adjust them as desired and re-run until you get a successful message.  
 Please note that MethylCIBERSORT reference data it uses to build the bed file is based on hg38 genome coordinates.  
 
-#### Input 
+#### Input
+
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | chrom_sizes_file | string | The path to a chrom_sizes file, generated from the index of the reference genome. | Optional. If not provided, the bundled `resources/hg38_no_alt.chrom_sizes` file is used. It is strongly recommended to generate this from the same reference genome you are using for sequencing — see [Chromosome size file](#chromosome-size-file). | `resources/hg38_no_alt.chrom_sizes` (bundled) |  
 
 *Example run command*  
+
 ```sh
 nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
     --make_target_bed \
@@ -313,15 +364,15 @@ Expected runtime: < 5 min
 
 #### Output
 
-| Title | File path | Description | 
-|-------|-----------|-------------| 
+| Title | File path | Description |
+|-------|-----------|-------------|
 | Targets with buffered regions | `minknow_input/<project_name>.targets_buffed.bed` | bed file for adaptive sampling |
 | Targets for alignment stats | `minknow_input/<project_name>.targets_for_align.bed` | A bed file provided for optional alignment of your target regions during sequencing. This file does NOT have buffered regions, do not use it in the adaptive sampling input. You may use it in the alignment only section, and it can help monitor read depth in your desired regions. If you are not confident with this do NOT use it. This file is also used for analysis during sample processing. |
-
 
 ### Mode `clin_trial_mode`
 
 #### Input
+
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | sample | string | A single sample name or identifier. Must start with an alphabet letter (i.e. not a digit or symbol). | Required for `--clin_trial_mode` and `--clinical_mode`. | null |
@@ -335,6 +386,7 @@ Expected runtime: < 5 min
 <!-- | sample_sheet | string | A CSV file used to map barcodes to sample aliases. The sample sheet can be provided when the input data is a folder containing sub-folders with FASTQ files. | The sample sheet is a CSV file with, minimally, columns named `barcode` and `alias`. Extra columns are allowed. A `type` column is required for certain workflows and should have the following values; `test_sample`, `positive_control`, `negative_control`, `no_template_control`. An optional `analysis_group` column is used by some workflows to combine the results of multiple samples. If the `analysis_group` column is present, it needs to contain a value for each sample. |  | -->
 
 *Example run command*  
+
 ```sh
 nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
     --clin_trial_mode \
@@ -352,6 +404,7 @@ nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
 ### Mode `clinical_mode`
 
 #### Input
+
 | Nextflow parameter name  | Type | Description | Help | Default |
 |--------------------------|------|-------------|------|---------|
 | sample | string | A single sample name or identifier. Must start with an alphabet letter (i.e. not a digit or symbol). | Required for `--clin_trial_mode` and `--clinical_mode`. | null |
@@ -365,6 +418,7 @@ nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
 <!-- | watch_path | boolean | Enable to continuously watch the input directory for new input files. | This option enables the use of Nextflow's directory watching feature to constantly monitor input directories for new files. | False | -->
 
 *Example run command*  
+
 ```sh
 nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
     --clinical_mode \
@@ -381,12 +435,15 @@ nextflow run Genomic-and-Epigenomic-Research-Lab-NZ/wf-panorama \
 ```
 
 ### Outputs for clin_trial and clinical modes
+
 Raw results for epi2melabs wf-human-variation, SNV, methylation and immune infiltrate sections can be found in their respective directories.  
 In `clin_trial_mode` the outputs from these sections (excluding wf-human-variation) are collated into one csv that can be used as input to a machine learning classifier.  
 In `clinical_mode` they are processed into a pdf report that uses `resources/template.md` to make.  
 
 #### Output directory `<sample name>/wf-humvar-run`
-Along with nextflow-generated directories (that can be removed when finished to save space), there are the following files:                     
+
+Along with nextflow-generated directories (that can be removed when finished to save space), there are the following files:
+
 - sample.flagstat.tsv
 - sample.gene_summary.tsv
 - sample.haplotagged.bam
@@ -415,9 +472,8 @@ Along with nextflow-generated directories (that can be removed when finished to 
 - sample.wf_sv.vcf.gz
 - sample.wf_sv.vcf.gz.tbi
 
-> [!WARNING] 
+> [!WARNING]
 > Please note that on `-resume`, Nextflow checks if `<project_name>/<sample>/.nextflow_cache/wf-humvar` exists. If it does, the whole process is skipped, regardless of the task hash. This is to prevent unnecessary rerunning of this particular computationally heavy task. If you change `--bed`, `--bam`, etc., the cached wf-humvar directory will still be used. If you need to rerun the wf-human-variation part of the workflow, we recommend you manually delete the entire `<sample_name>` directory to enable a clean restart. If you are familiar with Nextflow and feel confident, you can `cd` into the correct directory and set this workflow to `-resume` independent of Panorama if you wish.
-
 
 #### Output directory `<sample name>/mod_calling`
 
@@ -437,7 +493,6 @@ Along with nextflow-generated directories (that can be removed when finished to 
 <!-- #### Output directory `<sample name>/sv_annotation`
 This module is not yet implemented, there is currently an empty placeholder output -->
 
-
 <!-- #### Output directory `<sample name>/methylCS` -->
 
 #### Output directory `<sample name>/immune_infiltrate`
@@ -448,16 +503,17 @@ This module is not yet implemented, there is currently an empty placeholder outp
 - sample.bladder.mCS_ref.txt
 - sample.immune_panel_results.csv
 
-
 ## 🎯 Biomarker panel input
+
 This is a csv file containing metadata for each biomarker.  
 This can be generated using the template excel file provided in [demo_input](demo_input/panel_metadata_template.xlsx), then "Save As" a csv. Ensure the ID column remains 3 digits long (it can be string/character format, not number).  
 An example of the csv can be found here: [demo_input/panel_metadata.csv](demo_input/panel_metadata.csv)  
 
-> [!IMPORTANT]   
-> * ID numbers in the 400's are reserved for immune parameters
-> * ID numbers in the 500's are reserved for additional non-molecular factors such as demographic or clinicopathologic indicators that you wish to include in the classifiers but cannot be measured by nanopore sequencing
-> * The biomarker types "immune_inf" must not be changed  
+> [!IMPORTANT]
+>
+> - ID numbers in the 400's are reserved for immune parameters
+> - ID numbers in the 500's are reserved for additional non-molecular factors such as demographic or clinicopathologic indicators that you wish to include in the classifiers but cannot be measured by nanopore sequencing
+> - The biomarker types "immune_inf" must not be changed  
 
 <!-- TODO: Add references to the clinical report -->
 
@@ -497,7 +553,6 @@ An example of the csv can be found here: [demo_input/panel_metadata.csv](demo_in
 
 <!-- If your question is not answered here, please report any issues or suggestions on the [github issues](https://github.com/epi2me-labs/wf-template/issues) page or start a discussion on the [community](https://community.nanoporetech.com/). -->
 
-
 <!-- ## Related blog posts
 
 + [Importing third-party workflows into EPI2ME Labs](https://labs.epi2me.io/nexflow-for-epi2melabs/)
@@ -505,13 +560,14 @@ An example of the csv can be found here: [demo_input/panel_metadata.csv](demo_in
 See the [EPI2ME website](https://labs.epi2me.io/) for lots of other resources and blog posts. -->
 
 ## ✍️ Authors
-- Lucy Picard 
+
+- Lucy Picard
   - Postdoctoral Fellow, University of Otago, Wellington, NZ 🇳🇿
-  - https://github.com/lucy924
-  - lucy.picard@otago.ac.nz
+  - <https://github.com/lucy924>
+  - <lucy.picard@otago.ac.nz>
 - Aaron Stevens
   - PI, Genomic and Epigenomic Research Lab (GERL), University of Otago, Wellington, NZ 🇳🇿
-  - aaron.stevens@otago.ac.nz
+  - <aaron.stevens@otago.ac.nz>
 
 ## 🗝️ Licence
 
@@ -519,11 +575,11 @@ This project is licensed under the PolyForm Noncommercial License.
 Commercial use requires a separate licence from the authors.
 
 ## 🤝 Contributing
+
 Contributions are welcome!
 Please reach out if you have ideas for this project. We are open to collaboration to improve this tool!  
 By contributing, you agree to the [Contributor License Agreement (CLA)](CLA.md), which allows the maintainer to relicense the project in the future.  
 Please note the intent of this project is to actively encourage clinical research and development. We want to make a positive impact on clinical care and improve patient outcomes, as freely as possible. If this project gets to a point where it makes sense to commercialise it, we will discuss with all contributors before making significant decisions.  
-
 
 ## 🪢 Related protocols
 
@@ -532,8 +588,8 @@ Please note the intent of this project is to actively encourage clinical researc
 This workflow is designed to take input sequences that have been produced from [Oxford Nanopore Technologies](https://nanoporetech.com/) devices.  
 This protocol currently uses [epi2me-labs/wf-human-variation v2.6.0](https://github.com/epi2me-labs/wf-human-variation/releases/tag/v2.6.0) for initial analysis of bam files.  
 
-
 ## 🗺️ Roadmap
+
 - [ ]  Add multiple treatment options
 - [ ]  Integrate with Epi2ME Labs
 - [ ]  Add option for custom immune infiltrate references
@@ -546,21 +602,24 @@ Panorama was initially designed as part of the Doctoral thesis entitled:
 For full details on the development of this pipeline the relevant chapter is "Chapter Four: Multi-biomarker discovery using nanopore sequencing technology: proof-of-concept" and can be found in the [Otago archives](https://hdl.handle.net/10523/48489). The original development of the pipeline used [Snakemake](https://snakemake.readthedocs.io/en/stable/) and can be found on [Lucy's github repo](https://github.com/lucy924/nanopore_multiBM_pipeline) with associated material [here](https://github.com/lucy924/Multi-biomarker-ONT-project).
 
 ## 🎉 Acknowledgements
+
 Many thanks go to the funders of this project, The Barbara Basham Medical Charitable Trust. Read about the origin of the trust [here](https://wellington.govt.nz/arts-and-culture/heritage/historic-public-memorials/aunt-daisy).
 
 ## 📚 References
+
 - CIBERSORT
-  - Newman, A.M., Liu, C.L., Green, M.R., Gentles, A.J., Feng, W., Xu, Y., Hoang, C.D., Diehn, M., Alizadeh, A.A., 2015. Robust enumeration of cell subsets from tissue expression profiles. Nat Methods 12, 453–457. https://doi.org/10.1038/nmeth.3337
+  - Newman, A.M., Liu, C.L., Green, M.R., Gentles, A.J., Feng, W., Xu, Y., Hoang, C.D., Diehn, M., Alizadeh, A.A., 2015. Robust enumeration of cell subsets from tissue expression profiles. Nat Methods 12, 453–457. <https://doi.org/10.1038/nmeth.3337>
 - MethylCIBERSORT
-  - Chakravarthy, A., Furness, A., Joshi, K., Ghorani, E., Ford, K., Ward, M.J., King, E.V., Lechner, M., Marafioti, T., Quezada, S.A., Thomas, G.J., Feber, A., Fenton, T.R., 2018. Pan-cancer deconvolution of tumour composition using DNA methylation. Nat Commun 9, 3220. https://doi.org/10.1038/s41467-018-05570-1
+  - Chakravarthy, A., Furness, A., Joshi, K., Ghorani, E., Ford, K., Ward, M.J., King, E.V., Lechner, M., Marafioti, T., Quezada, S.A., Thomas, G.J., Feber, A., Fenton, T.R., 2018. Pan-cancer deconvolution of tumour composition using DNA methylation. Nat Commun 9, 3220. <https://doi.org/10.1038/s41467-018-05570-1>
 <!-- Citation style: Elsevier (author-date/Harvard, with titles) -->
 - Adaptive sampling reference file modified from:
   - Stephane Plaisance (VIB-NC) 2021
-  - https://github.com/Nucleomics-VIB
+  - <https://github.com/Nucleomics-VIB>
 
 ## 🤖 AI Assistance
 
 Development of this project used AI-assisted coding tools:
+
 - GitHub Copilot (VS Code extension)
 - Claude Sonnet v4.x
 - GPT-5 mini
@@ -568,5 +627,3 @@ Development of this project used AI-assisted coding tools:
 
 AI was used for language refactoring from Snakemake to Nextflow, and implementing industry-standard conventions. It was also used for wiring of Nextflow components and debugging.  
 AI tools were used interactively. Outputs were evaluated, edited, and validated by the author/s. No code was directly incorporated without review.  
-
-

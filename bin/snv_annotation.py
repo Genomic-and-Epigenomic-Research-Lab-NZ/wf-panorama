@@ -2,7 +2,7 @@
 import argparse
 import pandas as pd
 from cyvcf2 import VCF
-from shared_functions import variant_prep, get_location_string, get_annotation_dict, get_annotation_info_dict, add_result, variant_dict_columns_to_add, preclin_stage_panel_result_header, BIOMARKER_ID, BIOMARKER_NAME, SCORING_TYPE, BIOMARKER_TYPE_FULL, RESULT_OPTIONS
+from shared_functions import variant_prep, get_location_string, get_annotation_dict, get_annotation_info_dict, add_result, variant_dict_columns_to_add, preclin_stage_panel_result_header, BIOMARKER_ID, BIOMARKER_NAME, SCORING_TYPE, get_BM_TYPE_FULL, RESULT_OPTIONS
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--panel', required=True)
@@ -17,6 +17,8 @@ vcf_clinvar_fp = args.vcf_clin
 vcf_all_fp = args.vcf_all
 snv_output = args.out_raw
 snv_preclin_output = args.out_panel
+
+BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL(path2panel=args.panel)
 
 variants_metadata_df_snps = variant_prep(panel_metadata_fp, 'snv')
 vcf_clinvar = VCF(vcf_clinvar_fp)
