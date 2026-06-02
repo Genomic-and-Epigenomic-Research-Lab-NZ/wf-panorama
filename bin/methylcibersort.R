@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-
+library(data.table)
 library(MethylCIBERSORT)
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -16,55 +16,34 @@ cancer_type <- args[5]
 # table(Stromal_v2.pheno)
 
 # input_beta_matrix <- "Test2.methatlas.csv"
-# helper to read CSV/TSV
-read_input <- function(path) {
-    tryCatch(read.csv(path, stringsAsFactors = FALSE, check.names = FALSE),
-        error = function(e) {
-            tryCatch(read.table(path, header = TRUE, sep = "\t", stringsAsFactors = FALSE, check.names = FALSE),
-                error = function(e2) stop(paste("Failed to read input beta matrix:", path))
-            )
-        }
-    )
-}
+# helper to read CSV/TSV - use for methatlas code
+# read_input <- function(path) {
+#     tryCatch(read.csv(path, stringsAsFactors = FALSE, check.names = FALSE),
+#         error = function(e) {
+#             tryCatch(read.table(path, header = TRUE, sep = "\t", stringsAsFactors = FALSE, check.names = FALSE),
+#                 error = function(e2) stop(paste("Failed to read input beta matrix:", path))
+#             )
+#         }
+#     )
+# }
 
 cat("Reading beta matrix from:", input_beta_matrix, "\n")
-beta_df <- read_input(input_beta_matrix)
+# input_beta_matrix <- "Test3_small.methatlas.csv"
+beta_df <- fread(input_beta_matrix)
 
-# # Attempt to coerce to probe x sample matrix
-# if ("probe" %in% names(beta_df) && "beta" %in% names(beta_df)) {
-#     mix_df <- beta_df[, c("probe", "beta")]
-#     names(mix_df) <- c("NAME", sample_name)
-# } else if ("probe" %in% names(beta_df) && ncol(beta_df) > 1) {
-#     mix_df <- beta_df
-#     names(mix_df)[1] <- "NAME"
-#     # if only two columns, rename second to sample
-#     if (ncol(mix_df) == 2) names(mix_df)[2] <- sample_name
-# } else if (ncol(beta_df) >= 2) {
-#     names(beta_df)[1] <- "NAME"
-#     mix_df <- beta_df
-#     if (ncol(mix_df) == 2) names(mix_df)[2] <- sample_name
-# } else {
-#     stop("Unrecognised beta matrix format")
-# }
-# sample_name <- 'Test2'
+beta_df <- beta_df[, .(beta = mean(beta)), by = probe]
+
+# Convert to data.frame
+beta_df <- as.data.frame(beta_df)
+
+# Make probes the index name
 rownames(beta_df) <- beta_df$probe
-# head(beta_df)
+# remove the probe column
 beta_df$probe <- NULL
+# retitle the values column with the sample
 colnames(beta_df) <- sample_name
+# convert to matrix for methylcibersort
 beta_df <- as.matrix(beta_df)
-
-# # write mixture matrix as tab-delimited
-# mix_out <- paste0(mixture_matrix_name, ".txt")
-# cat("Writing mixture matrix to:", mix_out, "\n")
-# write.table(
-#     mix_df,
-#     file = mix_out, sep = "\t", row.names = FALSE, quote = FALSE
-# )
-
-# If MethylCIBERSORT is available, attempt to use its helper; otherwise write signature file placeholder
-# suppressWarnings(suppressMessages({
-#     have_mc <- requireNamespace("MethylCIBERSORT", quietly = TRUE)
-# }))
 
 
 cat("MethylCIBERSORT available; preparing signature and mixture using package functions\n")
@@ -90,8 +69,8 @@ head(base_sig_matrix)
 # head(methatlas_sig_matrix)
 
 # adjust colnames to match the methylcibersort reference
-colnames(methatlas_sig_matrix) <- gsub("CpGs", "NAME", colnames(methatlas_sig_matrix))
-colnames(methatlas_sig_matrix) <- gsub("Bladder", "Cancer", colnames(methatlas_sig_matrix))
+# colnames(methatlas_sig_matrix) <- gsub("CpGs", "NAME", colnames(methatlas_sig_matrix))
+# colnames(methatlas_sig_matrix) <- gsub("Bladder", "Cancer", colnames(methatlas_sig_matrix))
 # colnames(methatlas_sig_matrix) <- gsub(sig_key, "Cancer", colnames(methatlas_sig_matrix))
 
 # Export signature to file
@@ -131,19 +110,5 @@ Prep.CancerType(
     Probes = base_sig_matrix$NAME,
     fname = mixture_matrix_name
 )
-
-# # If MethylCIBERSORT's Prep.CancerType is available, call it (best-effort)
-# if (exists("Prep.CancerType", where = asNamespace("MethylCIBERSORT"), inherits = FALSE)) {
-#     tryCatch(
-#         {
-#             MethylCIBERSORT::Prep.CancerType(Beta = as.matrix(mix_df[, -1, drop = FALSE]), Probes = mix_df$NAME, fname = mixture_matrix_name)
-#             cat("Called Prep.CancerType to prepare mixture files\n")
-#         },
-#         error = function(e) {
-#             cat("Prep.CancerType failed:", e$message, "\n")
-#         }
-#     )
-# }
-
 
 cat("methylcibersort.R completed.\n")

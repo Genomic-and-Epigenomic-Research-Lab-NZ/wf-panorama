@@ -35,6 +35,10 @@ def add_illumina_probes(dss_df, EPIClocs_df):
 # Use depth=1 for development as original had TODO
 dss_df_30x = filter_dss_to_x_depth(dss_df.copy(), depth=meth_depth)
 
+# Add +1 to the position because I'm pretty sure it fixes a mapping problem from the dss conversion or before
+#TODO: check this properly with Aaron and with real tumour data.
+dss_df_30x['pos'] = dss_df_30x['pos'] + 1
+
 dss_df_30x_probes = add_illumina_probes(dss_df_30x, EPIClocs_df)
 
 dss_df_30x_probes.to_csv(args.out, index=False)

@@ -142,7 +142,7 @@ process run_CIBERSORTX {
         val sample_name
         val permutations
     output:
-        path "CIBERSORTx_${params.sample}_Results.csv", emit: cibersortx_out
+        path "CIBERSORTx_${params.sample}_Results.txt", emit: cibersortx_out
     script:
         """
         /src/CIBERSORTxFractions \\
