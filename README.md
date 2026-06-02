@@ -147,7 +147,8 @@ Containers:
 
 - general.sif (0.4 GB)
 - methylcibersort.sif (1.8 GB)
-- cibersortx_fractions.sif (0.3 GB)
+- cibersortx_fractions.sif (0.3 GB)  
+
 Place these in the directory: `wf-panorama/containers/`  
 
 #### Human Genome Reference
