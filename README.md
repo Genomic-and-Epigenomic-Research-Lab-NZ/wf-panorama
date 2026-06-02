@@ -166,7 +166,7 @@ During development the genome build `GCA_000001405.15_GRCh38_no_alt_analysis_set
 > Please note symlinks haven't been tested in this workflow yet. If there are mysterious errors try copying the genome to this location instead. Please let us know if you use symlinking wth the workflow and it works!
 
 > [!WARNING]
-> Methylation sites have been identified by their Illumina array probe names, and mapped to hg38 genome locations. Unless you rebuild all the files in this workflow that use genome locations, using the T2T genome build will NOT work and/or will give wrong results!
+> Methylation sites have been annotated by their Illumina array probe names, and mapped to hg38 genome locations. Unless you rebuild all the files in this workflow that use genome locations, using the T2T genome build will NOT work for the immune infiltrate section and/or will give wrong results!
 
 To generate the genome index file using samtools (recommended):  
 
@@ -259,6 +259,9 @@ Profiles are selected with the `-profile` flag on the command line. Combine an *
 > [!TIP]
 > On HPC systems, use `--singularity_cache /path/to/shared/cache` to point to a shared container cache directory and avoid re-downloading containers for each user.
 
+> [!WARNING]
+> At this stage, the workflow has only been tested on a slurm HPC cluster using Apptainer. While Nextflow should allow the pipeline to be transferable, there may be some issues with other compute setups, and with using Docker.
+
 Resource limits can be adjusted with `--max_memory`, `--max_cpus`, and `--max_time` to match your system's available resources.
 
 ## 🎈 Usage
@@ -266,8 +269,8 @@ Resource limits can be adjusted with `--max_memory`, `--max_cpus`, and `--max_ti
 There are three modes of operation, selected by the following flags:  
 
 1. `--make_target_bed` - This uses the input biomarker panel to create a bed file with buffer regions, suitable for MinKNOW adaptive sampling. This is different to ONT's "Bed Bugs" tool as it adds the necessary regions for immune infiltrate calculation specific to this tool. You are welcome to double check the output with ONT's tool, accessible [here](https://epi2me.nanoporetech.com/bed-bugs/)
-2. `--clin_trial_mode` - This runs sequence data processing, using input bam files, for a single sample. It generates output suitable for classifer training.
-3. `--clinical_mode` - This runs sequence data processing using input bam files and a classifier, presumably generated during the above clinical trial. The input biomarker panel must ensure all targets the classifier needs. and these must be captured by adaptive sampling.  
+2. `--clin_trial_mode` - This runs sequence data processing, using input bam files, for a single sample. It generates a csv file of biomarker results in relation to the input biomarker panel, and can be used for machine learning classifier training with the goal of predicting response to treatment.
+3. `--clinical_mode` - This runs sequence data processing using input bam files and a classifier, presumably generated during the above clinical trial. The input biomarker panel must contain all targets the classifier needs, and these must be captured by adaptive sampling.  
 
 > [!IMPORTANT]
 > A biomarker metadata csv file is required for all three modes of operation. See section [Biomarker panel input](#biomarker-panel-input) for details.
@@ -339,7 +342,8 @@ The MethylCIBERSORT process has a specific set of genomic locations it uses to g
 
 This mode has two outputs, for use in MinKNOW adaptive sampling. You must use this mode to generate your adaptive sampling bed file, as it combines your specific targets with regions identified for immune deconvolution by methylation. If your bed file does not contain these regions then the tool will not be able to perform immune deconvolution.  
 This mode may need to be rerun multiple times in order to create an optimal bed file that covers all regions adequately while also covering a suitable percentage of the genome. It will check if the resulting bed file meets all the requirements by using the `min_genome_coverage`, `max_genome_coverage` and `buffersize_bp` parameters. If the initial check fails, (it will tell you on the terminal) and/or you want different thresholds for these parameters, adjust them as desired and re-run until you get a successful message.  
-Please note that MethylCIBERSORT reference data it uses to build the bed file is based on hg38 genome coordinates.  
+For single site targets such as SNPs, buffer regions for adaptive sampling will be added appropriately. For targets that are larger regions, such as an entire gene, this mode adds 2000bp upstream and 1000bp downstream as the adaptive sampling "target region" and THEN adds standard buffer regions on top of these surrounding regions.
+Please note that the MethylCIBERSORT reference data it uses to build the bed file is based on hg38 genome coordinates.  
 
 #### Input
 
@@ -591,9 +595,11 @@ This protocol currently uses [epi2me-labs/wf-human-variation v2.6.0](https://git
 ## 🗺️ Roadmap
 
 - [ ]  Add multiple treatment options
+- [ ]  Allow running of multiple samples concurrently
 - [ ]  Integrate with Epi2ME Labs
 - [ ]  Add option for custom immune infiltrate references
-<!-- [ ] update to more recent version of wf-human-variation, investigate using wf-somatic-variation instead -->
+<!-- [ ] Add immune infiltrate barplot to outputs and clinical report -->
+<!-- [ ] update to more recent version of wf-human-variation -->
 
 ## 📜 Pipeline History
 

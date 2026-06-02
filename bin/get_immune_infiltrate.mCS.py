@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from shared_functions import variant_prep, BIOMARKER_ID, BIOMARKER_NAME, BIOMARKER_TYPE, get_BM_TYPE_FULL, SCORING_TYPE, RESULT_OPTIONS, preclin_stage_panel_result_header
 
+# CIBERSORTx headers for cell types
 lymphocytes = ["CD19", "CD4_Eff",
                 "CD56", "CD8", "Treg", ]
 monocytes = ["CD14"]
@@ -74,8 +75,10 @@ args = parser.parse_args()
 
 BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL(path2panel=args.panel)
 
-deconv_df = pd.read_csv(args.deconv, sep=',')  # TODO check once CS is up
+# CIBERSORT output is tab separated, others might not be
+deconv_df = pd.read_csv(args.deconv, sep='\t')
 
+# CIBERSORTx headers for cell types
 Monocytes = deconv_df['CD14'].iloc[0]
 Bcells = deconv_df['CD19'].iloc[0]
 CD4_Tcells = deconv_df['CD4_Eff'].iloc[0]
