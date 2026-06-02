@@ -139,7 +139,7 @@ The workflow can then be run with the downloaded demo data using: -->
 #### Containers
 
 The container components of this tool are very large. These are hosted on [figshare.com](figshare.com):  
-<https://figshare.com/account/articles/32165103>  
+<https://doi.org/10.6084/m9.figshare.32165103>  
 You will need to download these containers separately in order to use this tool.  
 On the plus side, you shouldn't need to download or set up any other packages!
 
@@ -147,7 +147,8 @@ Containers:
 
 - general.sif (0.4 GB)
 - methylcibersort.sif (1.8 GB)
-- cibersortx_fractions.sif (0.3 GB)
+- cibersortx_fractions.sif (0.3 GB)  
+
 Place these in the directory: `wf-panorama/containers/`  
 
 #### Human Genome Reference
