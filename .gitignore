@@ -16,6 +16,7 @@ containers/mCS_dev
 containers/mCS_mess
 containers/mCS_mess2
 containers/singularity
+containers/*tar.gz
 data
 docs
 lib
@@ -32,5 +33,5 @@ resources/test3.CS_bladder_ref.csv
 template-workflow
 test
 test_data
-
+demo_input/Test2.*
 development.ipynb
