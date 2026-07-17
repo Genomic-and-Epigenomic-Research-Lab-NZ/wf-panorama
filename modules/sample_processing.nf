@@ -160,8 +160,10 @@ process run_CIBERSORTX {
 process snv_prep {
     tag "snv_prep.${params.sample}"
     cpus 1
-    memory '4 GB'
-    time '30m'
+    memory   { 4.GB * Math.pow(2, task.attempt - 1) }
+    time     { 30.min * Math.pow(2, task.attempt - 1) }
+    maxRetries 2
+    errorStrategy { task.attempt <= 2 ? 'retry' : 'finish' }
     container "file://${projectDir}/containers/general.sif"
     publishDir "${params.out_dir}/${params.sample}/wf-humvar", mode: 'copy'
     input:
