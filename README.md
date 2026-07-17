@@ -102,7 +102,9 @@ Please get in contact with us if you are interested in using an alternative immu
 The workflow uses [Nextflow](https://www.nextflow.io/) to manage
 compute and software resources,
 therefore Nextflow will need to be
-installed before attempting to run the workflow.
+installed before attempting to run the workflow.  
+
+> [!WARNING] This workflow has been tested successfully using Nextflow v25.10.4. Panorama currently breaks on Nextflow v26.
 
 The workflow can be run using [Singularity](https://docs.sylabs.io/guides/3.0/user-guide/index.html), [Apptainer](https://apptainer.org/) (the open-source fork of Singularity, common on newer HPC systems), or [Docker](https://www.docker.com/).
 <!-- This is controlled by the
