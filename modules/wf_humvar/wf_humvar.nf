@@ -67,6 +67,9 @@ process RUN_WF_HUMVAR {
     def humvar_run_dir  = file("${params.out_dir}/${sample_name}/wf-humvar-run").toAbsolutePath()
     def wfhumvar_dir    = file("${projectDir}/modules/wf_humvar/wf-human-variation").toAbsolutePath()
     def wfhumvar_tag    = "v2.6.0"
+    def add_ont_basecaller = (params.ont_basecaller && params.ont_basecaller != 'null')
+        ? "--override_basecaller_cfg \"${params.ont_basecaller}\""
+        : ""
     """
     set -euo pipefail
 
@@ -76,6 +79,7 @@ process RUN_WF_HUMVAR {
     # ---------------------------------------------------------------------------
     WF_DIR="${wfhumvar_dir}"
     WF_TAG="${wfhumvar_tag}"
+    override_basecaller="${add_ont_basecaller}"
 
     if [ ! -d "\${WF_DIR}/.git" ]; then
         echo "wf-human-variation not found at \${WF_DIR} — cloning \${WF_TAG}..."
@@ -108,6 +112,8 @@ process RUN_WF_HUMVAR {
     # Output dir for this task (relative, inside task workDir — captured by Nextflow)
     mkdir -p wf-humvar
 
+    # ont_basecaller flag is resolved by Nextflow (see def above script block)
+
     echo "Running wf-human-variation for sample ${sample_name} with BAM dir ${bam_dir}"
 
     nextflow run ${wfhumvar_dir} \
@@ -125,8 +131,7 @@ process RUN_WF_HUMVAR {
         --output_gene_summary \
         --output_xam_fmt bam \
         --modkit_args "--preset traditional" \
-        --bam_min_coverage ${params.wf_humvar_bam_min_coverage} \
-        --override_basecaller_cfg "${params.ont_basecaller}" \
+        --bam_min_coverage ${params.wf_humvar_bam_min_coverage} ${add_ont_basecaller} \
         -profile ${params.wf_humvar_profile} \
         -process.executor slurm \
         -w \$NXF_WORK \
