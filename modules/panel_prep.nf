@@ -35,7 +35,7 @@ process get_chrom_sizes {
     cpus 1
     memory '2 GB'
     time '15m'
-    container "file://${projectDir}/containers/general.sandbox"
+    container "file://${projectDir}/containers/general.sif"
     publishDir "resources", mode: 'copy'
 
     input:
@@ -57,7 +57,7 @@ process get_immune_reference {
     memory '2 GB'
     time '15m'
     container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sif"
-    publishDir "${params.out_dir}", mode: 'copy'
+    publishDir "${params.project_outdir}", mode: 'copy'
 
     input:
         val cancer_type
@@ -79,27 +79,33 @@ process make_panel_bed {
     time '1h'
     container "file://${projectDir}/containers/general.sif"
     // Only publish the all_targets BED (targets_for_align.bed); suppress biomarker_panel.bed
-    publishDir "${params.out_dir}/minknow_input", mode: 'copy',
+    publishDir "${params.project_outdir}/minknow_input", mode: 'copy',
         saveAs: { filename -> filename == "biomarker_panel.bed" ? null : filename }
 
     input:
         path panel_csv
         path immune_ref_file
         path epic_locs_file
+        path msk_impact_file   // real MSK panel, or the assets/NO_FILE placeholder
         val  final_align_bed_name
+        val allEPIC
 
     output:
         path "biomarker_panel.bed",  emit: panel_bed
         path final_align_bed_name,   emit: all_targets
 
     script:
+    def allEpicFlag = allEPIC ? '--all-epic' : ''
+    def mskImpactFlag = msk_impact_file.name != 'NO_FILE' ? "--msk_impact ${msk_impact_file}" : ''
     """
     python3 ${projectDir}/bin/make_panel_bed.py \
         --panel-csv ${panel_csv} \
         --immune-reference ${immune_ref_file} \
         --epic-locs ${epic_locs_file} \
         --panel-bed biomarker_panel.bed \
-        --all-targets ${final_align_bed_name}
+        --all-targets ${final_align_bed_name} \
+        ${allEpicFlag} \
+        ${mskImpactFlag}
     """
 }
 
@@ -147,7 +153,7 @@ process check_coverage {
     debug true
     container "file://${projectDir}/containers/general.sif"
     // Only publish the final buffered targets BED (targets_buffed.bed)
-    publishDir "${params.out_dir}/minknow_input", mode: 'copy'
+    publishDir "${params.project_outdir}/minknow_input", mode: 'copy'
 
     input:
         path minknow_bed_file
@@ -202,13 +208,23 @@ workflow panel_prep {
                                 : file("${projectDir}/resources/hg38_no_alt.chrom_sizes")
 
         def epic_locs = params.Illumina_epic_locs 
-                                ? file("${projectDir}/resources/${params.Illumina_epic_locs}") 
+                                ? file("${params.Illumina_epic_locs}") 
                                 : file("${projectDir}/resources/IlluminaEPIC_genomic_locations_hg38.csv")
+        
+        def msk_impact_panel = params.msk_impact_panel 
+                                ? file("${projectDir}/resources/msk-impact_panel.20260730.bed") 
+                                : null
+
+        def allEPIC = params.all_epic_probes in [true, 'true', 'True', 1, '1']   // Get all possible true values for boolean parameter
 
         ref_ch          = Channel.fromPath(ref_fasta.toString(), checkIfExists: true)
         ref_idx_ch      = Channel.fromPath(ref_fai.toString(), checkIfExists: true)
         chrom_sizes_ch  = Channel.fromPath(chrom_sizes_path.toString(), checkIfExists: true)
         epic_locs_ch    = Channel.fromPath(epic_locs.toString(), checkIfExists: true)
+        // Use a real, committed placeholder file so Nextflow can stage it when no MSK panel is requested
+        msk_impact_ch    = params.msk_impact_panel 
+                            ? Channel.fromPath(msk_impact_panel.toString(), checkIfExists: true)
+                            : Channel.fromPath("${projectDir}/assets/NO_FILE", checkIfExists: true)
         // immune_ref_ch = Channel.of(immune_ref)
 
         // 1. Index the reference
@@ -225,7 +241,9 @@ workflow panel_prep {
             panel_metadata_ch, 
             get_immune_reference.out.immune_ref, 
             epic_locs_ch, 
-            final_align_bed_name
+            msk_impact_ch,
+            final_align_bed_name,
+            allEPIC
         )
 
         // 3. Generate MinKNOW adaptive-sampling reference files

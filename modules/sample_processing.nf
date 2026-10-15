@@ -10,7 +10,7 @@ process combine_bedmethyls {
     memory '8 GB'
     time '1h'
     container "file://${projectDir}/containers/general.sif"
-    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.sample_outdir}/mod_calling", mode: 'copy'
     input:
         path b1
         path b2
@@ -31,7 +31,7 @@ process convert_bedmethyl_to_DSS {
     errorStrategy { task.exitStatus in [137, 138, 139, 140, 143] ? 'retry' : 'terminate' }  // Retry on common OOM exit codes, with increasing memory on each retry
     maxRetries 5
     container "file://${projectDir}/containers/general.sif"
-    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.sample_outdir}/mod_calling", mode: 'copy'
     input:
         path bed
     output:
@@ -50,7 +50,7 @@ process prep_for_getting_betas {
     errorStrategy { task.exitStatus in [137, 138, 139, 140, 143] ? 'retry' : 'terminate' }  // Retry on common OOM exit codes, with increasing memory on each retry
     maxRetries 5
     container "file://${projectDir}/containers/general.sif"
-    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.sample_outdir}/mod_calling", mode: 'copy'
     input:
         path epic
         path dss
@@ -68,7 +68,7 @@ process add_betas {
     memory '16 GB'
     time '2h'
     container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sif"
-    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.sample_outdir}/mod_calling", mode: 'copy'
     input:
         path pre
     output:
@@ -85,7 +85,7 @@ process modification_calling {
     memory '16 GB'
     time '4h'
     container "file://${projectDir}/containers/general.sif"
-    publishDir "${params.out_dir}/${params.sample}/mod_calling", mode: 'copy'
+    publishDir "${params.sample_outdir}/mod_calling", mode: 'copy'
     input:
         path panel_meta
         path post_betas
@@ -97,9 +97,9 @@ process modification_calling {
         """
         python3 ${projectDir}/bin/modification_calling.py \
             --panel ${panel_meta} --mod_data ${post_betas} \
-            --out-meth ${params.sample}.methatlas.csv \
-            --out-mod  ${params.sample}.mod_results.csv \
-            --out-raw  ${params.sample}.rawmod_results.csv
+            --out_meth ${params.sample}.methatlas.csv \
+            --out_mod  ${params.sample}.mod_results.csv \
+            --out_raw  ${params.sample}.rawmod_results.csv
         """
 }
 
@@ -109,7 +109,7 @@ process run_methylCS {
     memory '8 GB'
     time '1h'
     container params.r_methyl_container ?: "file://${projectDir}/containers/methylcibersort.sif"
-    publishDir "${params.out_dir}/${params.sample}/immune_infiltrate", mode: 'copy'
+    publishDir "${params.sample_outdir}/immune_infiltrate", mode: 'copy'
     
     input:
         path beta
@@ -133,7 +133,7 @@ process run_CIBERSORTX {
     time '2h'
     container "file://${projectDir}/containers/cibersortx_fractions.sif"
     containerOptions "--bind \${PWD}:/src/data --bind \${PWD}:/src/outdir"
-    publishDir "${params.out_dir}/${params.sample}/immune_infiltrate", mode: 'copy', saveAs: { f -> file(f).name }
+    publishDir "${params.sample_outdir}/immune_infiltrate", mode: 'copy', saveAs: { f -> file(f).name }
     input:
         path mixture
         path sigmatrix
@@ -165,7 +165,8 @@ process snv_prep {
     maxRetries 2
     errorStrategy { task.attempt <= 2 ? 'retry' : 'finish' }
     container "file://${projectDir}/containers/general.sif"
-    publishDir "${params.out_dir}/${params.sample}/wf-humvar", mode: 'copy'
+    publishDir "${params.sample_outdir}/wf-humvar", mode: 'copy'
+    //TODO: Move/copy the vcf raw output to wf-humvar like the other outputs from this process. Ensure it doesn't break "snv_annotation"
     input:
         path vcf_clin_raw
         path vcf_gz
@@ -176,9 +177,23 @@ process snv_prep {
     script:
         // mv ${vcf_clin_raw}.gz ${params.sample}.wf_snp_clinvar.vcf.gz
         """
-        bgzip -k ${vcf_clin_raw}
-        tabix ${vcf_clin_raw}.gz
-        tabix ${vcf_gz}
+        set -euo pipefail
+
+        CLIN_LOCAL="${params.sample}.wf_snp_clinvar.vcf.gz"
+
+        # If input already gzipped -> try to create a hardlink to avoid a full copy.
+        if [[ "${vcf_clin_raw}" == *.gz ]]; then
+            # ln "${vcf_clin_raw}" "\${CLIN_LOCAL}" 2>/dev/null \
+            # || cp -f "${vcf_clin_raw}" "\${CLIN_LOCAL}"
+            echo "Input VCF is already gzipped."
+        else
+            # compress uncompressed VCF
+            bgzip -c "${vcf_clin_raw}" > "\${CLIN_LOCAL}"
+        fi
+
+        # Index both clin and all-SNP VCFs (force overwrite if needed)
+        tabix -f "\${CLIN_LOCAL}"
+        tabix -f "${vcf_gz}"
         """
 }
 
@@ -188,13 +203,13 @@ process snv_annotation {
     memory '8 GB'
     time '2h'
     container "file://${projectDir}/containers/general.sif"
-    publishDir "${params.out_dir}/${params.sample}/snv_annotation", mode: 'copy'
+    publishDir "${params.sample_outdir}/snv_annotation", mode: 'copy'
     input:
-        path panel_meta
-        path vcf_clin
-        path vcf_clin_tbi
-        path vcf_all
-        path vcf_all_tbi
+        path panel_meta  // BRCA_panel.20260622.csv
+        path vcf_clin  // Sample1_BCA.wf_snp_clinvar.vcf.gz
+        path vcf_clin_tbi  // Sample1_BCA.wf_snp_clinvar.vcf.gz.tbi
+        path vcf_all  // Sample1_BCA.wf_snp.vcf.gz
+        path vcf_all_tbi  // Sample1_BCA.wf_snp.vcf.gz.tbi
     output:
         path "${params.sample}.raw_snv_results.csv", emit: snv_raw
         path "${params.sample}.snv_results.csv",     emit: snv_panel
@@ -215,19 +230,22 @@ process sv_annotation {
     memory '8 GB'
     time '2h'
     container "file://${projectDir}/containers/general.sif"
-    publishDir "${params.out_dir}/${params.sample}/sv_annotation", mode: 'copy'
+    publishDir "${params.sample_outdir}/sv_annotation", mode: 'copy'
     input:
         path panel_meta
         path vcf_sv
+        path vcf_sv_tbi
     output:
-        path "${params.sample}.raw_sv_results.csv", emit: sv_raw
-        // path "${params.sample}.sv_results.csv",     emit: sv_panel  // TODO: Turned off for now until we get some SV data we can investigate
+        path "${params.sample}.raw_sv_results.csv",     emit: sv_raw
+        path "${params.sample}.raw_sv_results.csv.log", emit: sv_log
+        path "${params.sample}.sv_results.csv",         emit: sv_panel 
     script:
         """
         python3 ${projectDir}/bin/sv_annotation.py \
             --panel ${panel_meta} \
             --vcf_sv ${vcf_sv} \
-            --out ${params.sample}.raw_sv_results.csv
+            --out_raw ${params.sample}.raw_sv_results.csv \
+            --out_panel ${params.sample}.sv_results.csv
         """
 }
 
@@ -237,7 +255,7 @@ process immune_infiltrate_mCS {
     memory '8 GB'
     time '1h'
     container "file://${projectDir}/containers/general.sif"
-    publishDir "${params.out_dir}/${params.sample}/immune_infiltrate", mode: 'copy'
+    publishDir "${params.sample_outdir}/immune_infiltrate", mode: 'copy'
     input:
         path panel_meta
         path mcs
@@ -249,6 +267,25 @@ process immune_infiltrate_mCS {
             --deconv ${mcs} \
             --out ${params.sample}.immune_panel_results.csv \
             --panel ${panel_meta}
+        """
+}
+
+process plot_immune_infiltrate {
+    tag "plot_immune_infiltrate.${params.sample}"
+    cpus 1
+    memory '8 GB'
+    time '15m'
+    container "file://${projectDir}/containers/general.sif"
+    publishDir "${params.sample_outdir}/immune_infiltrate", mode: 'copy'
+    input:
+        path immune_result
+    output:
+        path "${params.sample}.immune_infiltrate.png", emit: immune_png
+    script:
+        """
+        python3 ${projectDir}/bin/plot_immune_infiltrate.py \
+            --result_data ${immune_result} \
+            --out ${params.sample}.immune_infiltrate.png
         """
 }
 
@@ -320,7 +357,15 @@ workflow sample_processing {
             files.find { it.name =~ /\.wf_snp\.vcf\.gz$/ }
         }
         vcf_clin_raw_ch = wf_humvar_files.map { files ->
-            files.find { it.name =~ /\.wf_snp_clinvar\.vcf$/ }
+            // was files.find { it.name =~ /\.wf_snp_clinvar\.vcf$/ }
+            // accept either .vcf or .vcf.gz from wf-human-variation
+            files.find { it.name =~ /\.wf_snp_clinvar\.vcf(\.gz)?$/ }
+        }
+        vcf_sv_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_sv\.vcf\.gz$/ }
+        }
+        vcf_sv_tbi_ch = wf_humvar_files.map { files ->
+            files.find { it.name =~ /\.wf_sv\.vcf\.gz\.tbi$/ }
         }
 
         // 2. Methylation pipeline
@@ -336,7 +381,7 @@ workflow sample_processing {
         if (params.skip_cibersortx) {
             // Use a pre-existing results file from the output directory (e.g. when token is expired)
             cibersortx_out_ch = Channel.fromPath(
-                "${params.out_dir}/${params.sample}/immune_infiltrate/CIBERSORTx_${params.sample}_Results.csv",
+                "${params.sample_outdir}/immune_infiltrate/CIBERSORTx_${params.sample}_Results.csv",
                 checkIfExists: true
             )
         } else {
@@ -354,15 +399,24 @@ workflow sample_processing {
         // 4. SNV / SV annotation
         snv_prep(vcf_clin_raw_ch, vcf_all_ch)
         snv_annotation(panel_metadata_ch, snv_prep.out.vcf_clin_gz, snv_prep.out.vcf_clin_tbi, vcf_all_ch, snv_prep.out.vcf_tbi)
-        sv_annotation(panel_metadata_ch, vcf_all_ch)
+        sv_annotation(panel_metadata_ch, vcf_sv_ch, vcf_sv_tbi_ch)
 
         // 5. Immune infiltrate
         immune_infiltrate_mCS(panel_metadata_ch, cibersortx_out_ch)
+        // if plot immune infiltrate is enabled, run the plotting process
+        def immune_plot_ch = Channel.empty()
+        if (params.plot_immune_infiltrate) {
+            plot_immune_infiltrate(immune_infiltrate_mCS.out.immune)
+            immune_plot_ch = plot_immune_infiltrate.out.immune_png
+        }
 
     emit:
+        snv_raw      = snv_annotation.out.snv_raw
         snv_panel    = snv_annotation.out.snv_panel
-        // sv_panel     = sv_annotation.out.sv_panel  # TODO: Turned off for now until we get some SV data we can investigate
-        sv_panel     = sv_annotation.out.sv_raw
+        sv_raw       = sv_annotation.out.sv_raw
+        sv_panel     = sv_annotation.out.sv_panel
         mod_results  = modification_calling.out.mod_results
         immune       = immune_infiltrate_mCS.out.immune
+        immune_plot  = immune_plot_ch
+
 }

@@ -85,12 +85,17 @@ if __name__ == '__main__':
 
     bed_df = pd.read_csv(args.input_bed, sep='\t', names=['#chrom', 'chromStart', 'chromEnd', 'name'])
     perc_HG = calc_coverage(bed_df, log)
+    
+    log_print(f"Criteria:\n", log)
+    log_print(f"  - Buffersize in bp: {args.buffer}\n", log)
+    log_print(f"  - Min coverage: {args.min_cov}\n", log)
+    log_print(f"  - Max coverage: {args.max_cov}\n", log)
 
     if args.min_cov < perc_HG < args.max_cov:
         log_print(f"Yay we found the sweet spot! Final coverage: {perc_HG}%\n", log)
         os.system(f'cp {args.input_bed} {args.output_bed}')
     else:
-        log_print('Criteria not met. Please adjust buffersize_bp parameter and rerun.\n', log)
+        log_print('Criteria not met. Please adjust buffersize_bp parameter and/or desired min_genome_coverage/max_genome_coverage and rerun. You may use the flag "-resume".\n', log)
         with open(args.output_bed, 'w') as fw:
             fw.write('Criteria not met.')
 

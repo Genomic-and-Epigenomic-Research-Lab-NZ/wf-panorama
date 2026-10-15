@@ -3,7 +3,9 @@ import argparse
 import sys
 import pandas as pd
 import numpy as np
-from shared_functions import variant_prep, BIOMARKER_ID, BIOMARKER_NAME, BIOMARKER_TYPE, get_BM_TYPE_FULL, SCORING_TYPE, RESULT_OPTIONS, preclin_stage_panel_result_header
+from shared_functions import variant_prep, BIOMARKER_ID, BIOMARKER_NAME, BIOMARKER_TYPE, get_BM_TYPE_FULL, get_full_SCORING_TYPE, SCORING_TYPE, RESULT_OPTIONS, NOTES, preclin_stage_panel_result_header
+
+notes_placeholder = ""
 
 # CIBERSORTx headers for cell types
 lymphocytes = ["CD19", "CD4_Eff",
@@ -67,69 +69,75 @@ def get_platelet_count():
     return
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--deconv', required=True)
-parser.add_argument('--out', required=True)
-parser.add_argument('--panel', required=True)
-args = parser.parse_args()
+def main(args):
 
-BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL(path2panel=args.panel)
+    BIOMARKER_TYPE_FULL = get_BM_TYPE_FULL(path2panel=args.panel)
+    SCORING_TYPE_FULL = get_full_SCORING_TYPE(path2panel=args.panel)
 
-# CIBERSORT output is tab separated, others might not be
-deconv_df = pd.read_csv(args.deconv, sep='\t')
+    # CIBERSORT output is tab separated, others might not be
+    deconv_df = pd.read_csv(args.deconv, sep='\t')
 
-# CIBERSORTx headers for cell types
-Monocytes = deconv_df['CD14'].iloc[0]
-Bcells = deconv_df['CD19'].iloc[0]
-CD4_Tcells = deconv_df['CD4_Eff'].iloc[0]
-NK_cells = deconv_df['CD56'].iloc[0]
-CD8_Tcells = deconv_df['CD8'].iloc[0]
-Tregs = deconv_df['Treg'].iloc[0]
-Endothelial = deconv_df['Endothelial'].iloc[0]
-Eosinophils = deconv_df['Eos'].iloc[0]
-Fibroblasts = deconv_df['Fibroblast'].iloc[0]
-Neutrophils = deconv_df['Neu'].iloc[0]
-Cancer = deconv_df['Cancer'].iloc[0]
+    # CIBERSORTx headers for cell types
+    Monocytes = deconv_df['CD14'].iloc[0]
+    Bcells = deconv_df['CD19'].iloc[0]
+    CD4_Tcells = deconv_df['CD4_Eff'].iloc[0]
+    NK_cells = deconv_df['CD56'].iloc[0]
+    CD8_Tcells = deconv_df['CD8'].iloc[0]
+    Tregs = deconv_df['Treg'].iloc[0]
+    Endothelial = deconv_df['Endothelial'].iloc[0]
+    Eosinophils = deconv_df['Eos'].iloc[0]
+    Fibroblasts = deconv_df['Fibroblast'].iloc[0]
+    Neutrophils = deconv_df['Neu'].iloc[0]
+    Cancer = deconv_df['Cancer'].iloc[0]
 
-# Get ratios of interest
-LMR_ratio = get_LMR(deconv_df)
-NLR_ratio = get_NLR(deconv_df)
+    # Get ratios of interest
+    LMR_ratio = get_LMR(deconv_df)
+    NLR_ratio = get_NLR(deconv_df)
 
-# Placeholders
-# LMR_ratio = np.nan
-# NLR_ratio = np.nan
+    # Placeholders
+    # LMR_ratio = np.nan
+    # NLR_ratio = np.nan
 
-panel_data_ratio = variant_prep(args.panel, 'immune_ratio')
-panel_data_infiltrate = variant_prep(args.panel, 'immune_inf')
+    panel_data_ratio = variant_prep(args.panel, 'immune_ratio')
+    panel_data_infiltrate = variant_prep(args.panel, 'immune_inf')
 
-bm_classif_panel_df = pd.DataFrame(columns=preclin_stage_panel_result_header)
+    bm_classif_panel_df = pd.DataFrame(columns=preclin_stage_panel_result_header)
 
-for i, row in panel_data_ratio.iterrows():
-    if row[BIOMARKER_NAME] == 'LMR':
-        result = LMR_ratio
-    elif row[BIOMARKER_NAME] == 'NLR':
-        result = NLR_ratio
-    else:
-        result = np.nan
-    bm_classif_panel_df.loc[i] = [row[BIOMARKER_ID], row[BIOMARKER_NAME], row[SCORING_TYPE], row[BIOMARKER_TYPE_FULL], row[RESULT_OPTIONS], result]
+    for i, row in panel_data_ratio.iterrows():
+        if row[BIOMARKER_NAME] == 'LMR':
+            result = LMR_ratio
+        elif row[BIOMARKER_NAME] == 'NLR':
+            result = NLR_ratio
+        else:
+            result = np.nan
+        bm_classif_panel_df.loc[i] = [row[BIOMARKER_ID], row[BIOMARKER_NAME], row[SCORING_TYPE_FULL], row[BIOMARKER_TYPE_FULL], row[RESULT_OPTIONS], result, notes_placeholder]
 
-mapping = {
-    'Monocyte_inf': Monocytes,
-    'Bcell_inf': Bcells,
-    'CD4_inf': CD4_Tcells,
-    'NK_inf': NK_cells,
-    'CD8_inf': CD8_Tcells,
-    'Treg_inf': Tregs,
-    'Neutrophil_inf': Neutrophils,
-    'Endothelial_inf': Endothelial,
-    'Eosinophil_inf': Eosinophils,
-    'Fibroblast_inf': Fibroblasts,
-    'Cancer_inf': Cancer
-}
+    mapping = {
+        'Monocyte_inf': Monocytes,
+        'Bcell_inf': Bcells,
+        'CD4_inf': CD4_Tcells,
+        'NK_inf': NK_cells,
+        'CD8_inf': CD8_Tcells,
+        'Treg_inf': Tregs,
+        'Neutrophil_inf': Neutrophils,
+        'Endothelial_inf': Endothelial,
+        'Eosinophil_inf': Eosinophils,
+        'Fibroblast_inf': Fibroblasts,
+        'Cancer_inf': Cancer
+    }
+        
+    for i, row in panel_data_infiltrate.iterrows():
+        name = row[BIOMARKER_NAME]
+        result = mapping.get(name, np.nan)
+        bm_classif_panel_df.loc[i] = [row[BIOMARKER_ID], row[BIOMARKER_NAME], row[SCORING_TYPE_FULL], row[BIOMARKER_TYPE_FULL], row[RESULT_OPTIONS], result, notes_placeholder]
+
+    bm_classif_panel_df.to_csv(args.out, index=False)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--deconv', required=True)
+    parser.add_argument('--out', required=True)
+    parser.add_argument('--panel', required=True)
+    args = parser.parse_args()
     
-for i, row in panel_data_infiltrate.iterrows():
-    name = row[BIOMARKER_NAME]
-    result = mapping.get(name, np.nan)
-    bm_classif_panel_df.loc[i] = [row[BIOMARKER_ID], row[BIOMARKER_NAME], row[SCORING_TYPE], row[BIOMARKER_TYPE_FULL], row[RESULT_OPTIONS], result]
-
-bm_classif_panel_df.to_csv(args.out, index=False)
+    main(args)

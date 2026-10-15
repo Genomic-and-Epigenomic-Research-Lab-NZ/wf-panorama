@@ -16,7 +16,7 @@ include { generate_report }         from './modules/make_sample_report.nf'
 // Aliased publish processes — DSL2 requires a unique process instance per workflow invocation
 process publish_target_bed {
     label "wftemplate"
-    publishDir ( params.out_dir, mode: "copy", saveAs: { dirname ? "$dirname/$fname" : fname } )
+    publishDir ( params.project_outdir, mode: "copy", saveAs: { dirname ? "$dirname/$fname" : fname } )
     input:  tuple path(fname), val(dirname)
     output: path fname
     script: "echo 'Writing output files'"
@@ -24,16 +24,16 @@ process publish_target_bed {
 
 process publish_classifier {
     label "wftemplate"
-    publishDir ( params.out_dir, mode: "copy", saveAs: { dirname ? "$dirname/$fname" : fname } )
-    input:  tuple path(fname), val(dirname)
+    publishDir ( params.sample_outdir, mode: "copy" )
+    input:  path fname
     output: path fname
     script: "echo 'Writing output files'"
 }
 
 process publish_report {
     label "wftemplate"
-    publishDir ( params.out_dir, mode: "copy", saveAs: { dirname ? "$dirname/$fname" : fname } )
-    input:  tuple path(fname), val(dirname)
+    publishDir ( params.sample_outdir, mode: "copy" )
+    input:  path fname
     output: path fname
     script: "echo 'Writing output files'"
 }
@@ -76,13 +76,13 @@ workflow get_classifier_input_sample_data {
         make_classifier_input(
             panel_metadata_ch,
             sample_processing.out.snv_panel,
+            sample_processing.out.sv_panel,
             sample_processing.out.mod_results,
             sample_processing.out.immune
         )
 
-        // Publish final panel results into params.out_dir/<sample>/
+        // Publish final panel results into params.sample_outdir
         make_classifier_input.out.panel_results
-            | map { f -> tuple(f, "${params.sample}") }
             | publish_classifier
 
     emit:
@@ -110,10 +110,9 @@ workflow get_patient_report {
             get_scores.out.scores
         )
 
-        // Publish final report into params.out_dir/<sample>/
+        // Publish final report into params.sample_outdir
         generate_report.out.report_md
             .mix(generate_report.out.report_html)
-            | map { f -> tuple(f, "${params.sample}") }
             | publish_report
 
     emit:
@@ -143,11 +142,13 @@ workflow {
     }
 
     // Validate mode-specific required params
+    // TODO: gather all errors into one output to avoid multiple rounds of fixing params and re-running
     def validateSampleProcessingParams = { mode ->
         if (!params.sample)              error "Please provide --sample <sample_name> when using --${mode}"
         if (!params.bam_directory)       error "Please provide --bam_directory <path_to_bam_folder> when using --${mode}"
         if (!params.cibersortx_username) error "Please provide --cibersortx_username <username> when using --${mode}"
         if (!params.cibersortx_token)    error "Please provide --cibersortx_token <token> when using --${mode}"
+        if (!params._base_working_dir_user_set) error "Please provide --base_working_dir <path> when using --${mode}. This must point to the same base directory used during --make_target_bed so that shared project files (target bed, panel files) can be located."
     }
 
     if (params.make_target_bed) {
@@ -159,12 +160,13 @@ workflow {
     }
 
     // Set output directory for results
-    publish_dir = file("${params.out_dir}")
+    def mode_outdir = params.make_target_bed ? params.project_outdir : params.sample_outdir
+    publish_dir = file("${mode_outdir}")
     publish_dir.mkdirs()
 
     // Create input channels
     panel_metadata_ch = Channel.fromPath(params.panel_metadata, checkIfExists: true)
-    publish_dir_ch = Channel.fromPath(params.out_dir)
+    publish_dir_ch = Channel.fromPath(mode_outdir)
 
     if (params.make_target_bed) {
         // Generate target bed file for MinKNOW adaptive sampling

@@ -35,12 +35,9 @@ workflow WF_HUMVAR {
 
 process RUN_WF_HUMVAR {
     tag { "wf-human-variation.${sample_name}" }
-    cpus 4
-    memory '32 GB'
-    time '12h'
     cache 'lenient'  // Cache outputs even if the process script changes (since the script is just a wrapper around a stable wf-human-variation run dir)
-    storeDir { file("${params.out_dir}/${sample_name}/.nextflow_cache").toAbsolutePath() }
-    publishDir "${params.out_dir}/${params.sample}/wf-humvar-run", mode: 'copy'
+    storeDir { file("${params.sample_outdir}/.nextflow_cache").toAbsolutePath() }
+    publishDir "${params.sample_outdir}/wf-humvar-run", mode: 'copy'
 
     // ======== WARNING ========
     // storeDir won't re-run if inputs change but outputs already exist
@@ -63,28 +60,29 @@ process RUN_WF_HUMVAR {
     // humvar_run_dir is OUTSIDE the task work dir so it is stable across
     // outer pipeline retries — this is what allows -resume to work on the
     // nested wf-human-variation run.
-    // def humvar_run_dir = "${params.out_dir}/${params.sample}/wf-humvar-run"
-    def humvar_run_dir  = file("${params.out_dir}/${sample_name}/wf-humvar-run").toAbsolutePath()
-    def wfhumvar_dir    = file("${projectDir}/modules/wf_humvar/wf-human-variation").toAbsolutePath()
-    def wfhumvar_tag    = "v2.6.0"
-    def add_ont_basecaller = (params.ont_basecaller && params.ont_basecaller != 'null')
+    // def humvar_run_dir = "${params.sample_outdir}/wf-humvar-run"
+    def humvar_run_dir       = file("${params.sample_outdir}/wf-humvar-run").toAbsolutePath()
+    def wfhumvar_dir         = file("${projectDir}/modules/wf_humvar/wf-human-variation").toAbsolutePath()
+    def wfhumvar_ref         = "epi2me-labs/wf-human-variation"
+    def wfhumvar_tag         = "v2.7.2"
+    def add_ont_basecaller   = (params.ont_basecaller && params.ont_basecaller != 'null')
         ? "--override_basecaller_cfg \"${params.ont_basecaller}\""
         : ""
     """
     set -euo pipefail
 
     # ---------------------------------------------------------------------------
-    # Ensure wf-human-variation v2.6.0 is present at the expected local path.
+    # Ensure wf-human-variation v2.7.2 is present at the expected local path.
     # If the directory is missing or is not at the correct tag, clone it fresh.
     # ---------------------------------------------------------------------------
     WF_DIR="${wfhumvar_dir}"
     WF_TAG="${wfhumvar_tag}"
-    override_basecaller="${add_ont_basecaller}"
 
     if [ ! -d "\${WF_DIR}/.git" ]; then
-        echo "wf-human-variation not found at \${WF_DIR} — cloning \${WF_TAG}..."
+        echo "wf-human-variation not found at \${WF_DIR} — pulling \${WF_TAG}..."
         git clone --depth 1 --branch "\${WF_TAG}" \
             https://github.com/epi2me-labs/wf-human-variation.git "\${WF_DIR}"
+            git -C "\${WF_DIR}" checkout -b "\${WF_TAG}"-branch "\${WF_TAG}"
     else
         CURRENT_TAG=\$(git -C "\${WF_DIR}" describe --tags --exact-match 2>/dev/null || echo "unknown")
         if [ "\${CURRENT_TAG}" != "\${WF_TAG}" ]; then
@@ -92,6 +90,7 @@ process RUN_WF_HUMVAR {
             rm -rf "\${WF_DIR}"
             git clone --depth 1 --branch "\${WF_TAG}" \
                 https://github.com/epi2me-labs/wf-human-variation.git "\${WF_DIR}"
+            git -C "\${WF_DIR}" checkout -b "\${WF_TAG}"-branch "\${WF_TAG}"
         else
             echo "wf-human-variation \${WF_TAG} already present at \${WF_DIR}"
         fi
@@ -112,8 +111,6 @@ process RUN_WF_HUMVAR {
     # Output dir for this task (relative, inside task workDir — captured by Nextflow)
     mkdir -p wf-humvar
 
-    # ont_basecaller flag is resolved by Nextflow (see def above script block)
-
     echo "Running wf-human-variation for sample ${sample_name} with BAM dir ${bam_dir}"
 
     nextflow run ${wfhumvar_dir} \
@@ -121,19 +118,17 @@ process RUN_WF_HUMVAR {
         --ref ${ref} \
         --bed ${targets} \
         --sample_name ${sample_name} \
-        --project_name ${project_name} \
         --out_dir wf-humvar \
         --sv \
         --snp \
         --mod \
         --str \
         --phased \
-        --output_gene_summary \
         --output_xam_fmt bam \
         --modkit_args "--preset traditional" \
         --bam_min_coverage ${params.wf_humvar_bam_min_coverage} ${add_ont_basecaller} \
         -profile ${params.wf_humvar_profile} \
-        -process.executor slurm \
+        -process.executor ${params.wf_humvar_executor} \
         -w \$NXF_WORK \
         -with-report ${humvar_run_dir}/execution/report.html \
         -with-timeline ${humvar_run_dir}/execution/timeline.html \
@@ -144,5 +139,3 @@ process RUN_WF_HUMVAR {
     ls -R wf-humvar
     """
 }
-
-// process.executor slurm may not work or be appropriate for running on other systems. Use with caution.
