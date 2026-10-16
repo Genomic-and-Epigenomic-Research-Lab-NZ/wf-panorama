@@ -639,10 +639,10 @@ Please note the intent of this project is to actively encourage clinical researc
 
 ## 🪢 Related protocols
 
-<!---Hyperlinks to any related protocols that are directly related to this workflow, check the community for any such protocols.--->
+<!---Hyperlinks to any related protocols that are directly related to this workflow--->
 
 This workflow is designed to take input sequences that have been produced from [Oxford Nanopore Technologies](https://nanoporetech.com/) devices.  
-This protocol currently uses [epi2me-labs/wf-human-variation v2.6.0](https://github.com/epi2me-labs/wf-human-variation/releases/tag/v2.6.0) for initial analysis of bam files.  
+This protocol currently uses [epi2me-labs/wf-human-variation v2.7.2](https://github.com/epi2me-labs/wf-human-variation/releases/tag/v2.7.2) for initial analysis of bam files.  
 
 ## 🗺️ Roadmap
 
