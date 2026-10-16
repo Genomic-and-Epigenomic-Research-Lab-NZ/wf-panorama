@@ -227,10 +227,16 @@
             "fa_icon": "fas fa-arrow-left",
             "description": "Parameters for saving and naming workflow outputs.",
             "properties": {
-                "out_dir": {
+                "project_outdir": {
                     "type": "string",
                     "format": "directory-path",
-                    "description": "Directory for output of all workflow results. Defaults to <project_name> if not set.",
+                    "description": "Project-level output directory. Used for make_target_bed outputs and as the base path for default sample_outdir values.",
+                    "hidden": true
+                },
+                "sample_outdir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "description": "Sample-level output directory for clin_trial_mode and clinical_mode. Defaults to <current working directory>/<sample>.",
                     "hidden": true
                 }
             }
